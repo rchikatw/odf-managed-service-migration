@@ -292,6 +292,7 @@ validate() {
     echo "OK, you have jq installed. We will use that."
   else
     echo "jq is not installed, Please install and rerun the restore script"
+    usage
     exit
   fi
 
@@ -299,6 +300,7 @@ validate() {
     echo "OK, you have yq installed. We will use that."
   else
     echo "yq is not installed, Please install and rerun the restore script"
+    usage
     exit
   fi
  
