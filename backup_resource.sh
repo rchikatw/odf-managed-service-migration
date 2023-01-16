@@ -6,7 +6,7 @@ mkdir {deployments,persistentvolumes,persistentvolumeclaims,secrets,storageconsu
 
 echo -e "\nBacking up Deployments"
 cd deployments
-oc get deployment -n openshift-storage | grep 'rook-ceph-mon\|rook-ceph-osd' | awk 'NR!=1 {print}' | awk '{ cmd="oc get deployment "$1" -n openshift-storage -o json > " $1".json"; system(cmd) }'
+oc get deployment -n openshift-storage | grep 'rook-ceph-mon\|rook-ceph-osd' | awk '{ cmd="oc get deployment "$1" -n openshift-storage -o json > " $1".json"; system(cmd) }'
 
 echo -e "\nBacking up PV"
 cd ../persistentvolumes
