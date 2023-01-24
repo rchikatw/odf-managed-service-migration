@@ -2,16 +2,16 @@
 
 usage() {
   cat << EOF
- 
-  Update the StorageConsumer id in the status section of StorageCluster CR.
- 
+
+  Update the StorageConsumer id and StorageProviderEndpoint in the StorageCluster CR.
+
   Requirements:
     1. A ROSA cluster with ODF MS Consumer addon installed.
     2. kubectl & curl installed.
- 
-  USAGE: "./restoreConsumer.sh <kubeconfig> <storageConsumerUid>"
 
- 
+  USAGE: "./restore_consumer.sh <kubeconfig> <storageConsumerUid> <storageProviderEndpoint>"
+
+
 EOF
 }
 
@@ -21,7 +21,7 @@ validate() {
     usage
     exit 0
   fi
- 
+
   if [[ -z "$1" ]]
   then
     echo "Missing kubeconfig!!"
@@ -33,17 +33,28 @@ validate() {
 
   if [[ -z "$2" ]]
   then
-    echo "Missing Storage Cluster uid!!"
+    echo "Missing Storage Consumer uid!!"
     usage
     exit 1
   fi
 
-  echo "Storage Cluster uid: "$2
+  echo "Storage Consumer uid: "$2
+
+  if [[ -z "$3" ]]
+  then
+    echo "Missing Storage Provider endpoint!!"
+    usage
+    exit 1
+  fi
+
+  echo "Storage Provider endpoint: "$3
 
 }
 
-validate "$1" "$2"
+validate "$1" "$2" "$3"
 export KUBECONFIG=$1
+
+kubectl patch storagecluster ocs-storagecluster -n openshift-storage -p '{"spec": {"externalStorage": {"storageProviderEndpoint": "'${3}'"}}}' --type merge
 
 kill $(lsof -t -i:8081)
 kubectl proxy --port=8081 &
@@ -56,4 +67,6 @@ curl -X PATCH -H 'Content-Type: application/merge-patch+json' --data ${DATA} ${E
 
 kill $(lsof -t -i:8081)
 
-echo "Restore consumer script complted, Please edit the Stroage provider endpoint from UI. "
+kubectl rollout restart deployment ocs-operator -n openshift-storage
+
+echo "Restore consumer script complted!"
