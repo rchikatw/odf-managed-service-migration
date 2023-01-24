@@ -1,24 +1,23 @@
 #!/bin/bash
- 
+
 usage() {
   cat << EOF
- 
+
   Restore a ODF MS provider into a new cluster.
- 
+
   Requirements:
     1. A new ROSA cluster with ODF MS Provider addon installed.
     2. Backup of resources from the old cluster.
-    3. AWS EBS volumes of the previous cluster.
-    4. kubectl, yq and jq installed.
- 
-  USAGE: "./restoreProvider.sh <kubeconfig> '<S3 URL of backup>'"
- 
+    3. kubectl, yq and jq installed.
+
+  USAGE: "./restore_provider.sh <kubeconfig>"
+
   Please note that we need to provide the absolute path to kubeconfig and s3 URL in ' '
 
   To install jq or yq Refer:
   1. yq: https://www.cyberithub.com/how-to-install-yq-command-line-tool-on-linux-in-5-easy-steps/
   2. jq: https://www.cyberithub.com/how-to-install-jq-json-processor-on-rhel-centos-7-8/
- 
+
 EOF
 }
 
@@ -34,7 +33,7 @@ cleanup() {
   unset workerNodeNames
   unset workerIps
   unset mons
- 
+
   # Remove the backup and temporary files
   rm -rf backup
   rm rook-ceph-mon-*.json
@@ -59,7 +58,7 @@ deleteResources() {
   # Delete the resources on new provider cluster
   echo "Stopping rook-ceph operator"
   kubectl scale deployment rook-ceph-operator --replicas 0
-  
+
   echo "Removing all deployments expect rook-ceph-operator"
   kubectl delete deployments -l rook_cluster=openshift-storage
 
@@ -70,10 +69,10 @@ deleteResources() {
   kubectl delete secret rook-ceph-mon
   kubectl delete secret rook-ceph-admin-keyring
   kubectl delete secret rook-ceph-mons-keyring
- 
+
   echo "Deleting the osd prepare jobs if any"
   kubectl delete jobs -l app=rook-ceph-osd-prepare
- 
+
   echo "Removing all PVC & PV from the namespace"
   kubectl delete pvc --all
 }
@@ -82,15 +81,15 @@ applyPersistentVolumes() {
 
   # Apply the PV objects from the backup cluster
   echo -e "\nApplying the PVs from backup cluster "
-  pvFilenames=`ls  $backupDirectoryName/resources/persistentvolumes/cluster/`
+  pvFilenames=`ls  $backupDirectoryName/persistentvolumes/`
   for pv in $pvFilenames
   do
-    namespace=$(cat $backupDirectoryName/resources/persistentvolumes/cluster/$pv | jq '.spec .claimRef .namespace' | sed "s/\"//g")
+    namespace=$(cat $backupDirectoryName/persistentvolumes/$pv | jq '.spec .claimRef .namespace' | sed "s/\"//g")
     if [[ $namespace == "openshift-storage" ]]
     then
         # claim gets added after applying pvc
-        cat <<< $(jq 'del(.spec .claimRef)' $backupDirectoryName/resources/persistentvolumes/cluster/$pv ) > $backupDirectoryName/resources/persistentvolumes/cluster/$pv
-        kubectl apply -f $backupDirectoryName/resources/persistentvolumes/cluster/$pv
+        cat <<< $(jq 'del(.spec .claimRef)' $backupDirectoryName/persistentvolumes/$pv ) > $backupDirectoryName/persistentvolumes/$pv
+        kubectl apply -f $backupDirectoryName/persistentvolumes/$pv
     fi
   done
 }
@@ -99,7 +98,7 @@ applyPersistentVolumeClaims() {
 
   # Apply the PVC objects from the backup cluster
   echo -e "\nApplying PVC's for osd's and mon's"
-  pvcFilenames=`ls  $backupDirectoryName/resources/persistentvolumeclaims/namespaces/openshift-storage/*{default,rook-ceph-mon}*`
+  pvcFilenames=`ls  $backupDirectoryName/persistentvolumeclaims/*{default,rook-ceph-mon}*`
   for pvc in $pvcFilenames
   do
     # replace with cephcluster uid
@@ -113,7 +112,7 @@ applySecrets() {
 
   # Apply the secrets
   echo -e "\nApplying required secrets for rook-ceph"
-  secretFilenames=`ls  $backupDirectoryName/resources/secrets/namespaces/openshift-storage/*{rook-ceph-mon.json,rook-ceph-mons-keyring,rook-ceph-admin-keyring}*`
+  secretFilenames=`ls  $backupDirectoryName/secrets/*{rook-ceph-mon.json,rook-ceph-mons-keyring,rook-ceph-admin-keyring}*`
   for secret in $secretFilenames
   do
     # replace with cephcluster uid
@@ -127,14 +126,14 @@ applyMonDeploymens() {
 
   echo "Apply the mon deployments and Getting Mon names"
   nodeCount=1
-  deployments=`ls  $backupDirectoryName/resources/deployments.apps/namespaces/openshift-storage/rook-ceph-mon*`
+  deployments=`ls  $backupDirectoryName/deployments/rook-ceph-mon*`
   for entry in $deployments
   do
     # ownerReference gets added after starting rook-ceph-operator
     cat <<< $(jq 'del(.metadata .ownerReferences)' $entry) > $entry
     cat <<< $(jq --arg workerNodeName ${workerNodeNames[$nodeCount]} '.spec .template .spec .nodeSelector ."kubernetes.io/hostname" = $workerNodeName ' $entry) > $entry
     kubectl apply -f $entry
- 
+
     monName=${entry##*/}
     monName=$(echo $monName| cut -d'-' -f 4)
     mons[${nodeCount}]=${monName[0]%%.*}
@@ -148,9 +147,9 @@ injectMonMap() {
   echo "Inject monmap for mons"
   ROOK_CEPH_MON_HOST=$(kubectl get secrets rook-ceph-config -o json | jq -r '.data .mon_host' | base64 -d)
   ROOK_CEPH_MON_INITIAL_MEMBERS=$(kubectl get secrets rook-ceph-config -o json | jq -r '.data .mon_initial_members' | base64 -d)
- 
+
   nodeCount=1
-  deployments=`ls  $backupDirectoryName/resources/deployments.apps/namespaces/openshift-storage/rook-ceph-mon*`
+  deployments=`ls  $backupDirectoryName/deployments/rook-ceph-mon*`
   for entry in $deployments
   do
     mon=${entry##*/}
@@ -176,26 +175,38 @@ injectMonMap() {
       fi
       sleep 2
     done
- 
+
     echo -e "\nApplying Sleep, Initial delay to mon pod so that it won't restart during injecting monmap"
     kubectl patch deployment $mon -p '{"spec": {"template": {"spec": {"containers": [{"name": "mon", "livenessProbe": { "initialDelaySeconds": 20, "timeoutSeconds": 60} , "command": ["sleep", "infinity"], "args": [] }]}}}}'
 
     sleep 10
- 
+
     podName=$(kubectl get pods | grep $mon | awk '{ print $1; exit }')
- 
+
     args=$(cat $mon.json | jq -r ' .spec .template  .spec .containers[0] .args | join(" ") ')
     args="${args//)/' '}"
     args="${args//'$'(/'$'}"
 
     extractMonmap=$args" --extract-monmap=/tmp/monmap "
     injectMonmap=$args" --inject-monmap=/tmp/monmap "
- 
+
     echo "extractMonmap: "${extractMonmap}
     echo "injectMonmap: "${injectMonmap}
- 
+
+    while true
+    do
+      podStatus=$(kubectl get pods | grep $mon | awk '{ print $3; exit }')
+      containerCount=$(kubectl get pods | grep $mon | awk '{ print $2; exit }')
+      echo "podStatus is "$podStatus
+      if [[ $podStatus == *"Running"* ]]
+      then
+          break
+      fi
+      sleep 2
+    done
+
     kubectl exec -it ${podName} -- /bin/bash -c " cluster_namespace=openshift-storage ; ceph-mon $extractMonmap ; sleep 5;  monmaptool --print /tmp/monmap ; monmaptool /tmp/monmap --rm ${mons[1]} ;  monmaptool /tmp/monmap --rm ${mons[2]} ; monmaptool /tmp/monmap --rm ${mons[3]} ; monmaptool /tmp/monmap --add ${mons[1]} ${workerIps[1]} ; monmaptool /tmp/monmap --add ${mons[2]} ${workerIps[2]} ; monmaptool /tmp/monmap --add ${mons[3]} ${workerIps[3]} ; sleep 2 ; ceph-mon $injectMonmap ; monmaptool --print /tmp/monmap ; "
- 
+
     sleep 5
 
     echo -e "\napplying rook ceph mon deployment"
@@ -254,7 +265,7 @@ applyOsds() {
 
   # Iterate over the OSD deployment files
   echo -e "\nApplying the deployments for osds"
-  deploymentsOsds=`ls  $backupDirectoryName/resources/deployments.apps/namespaces/openshift-storage/rook-ceph-osd-*`
+  deploymentsOsds=`ls  $backupDirectoryName/deployments/rook-ceph-osd-*`
   for entry in $deploymentsOsds
   do
     # ownerReference gets added after starting rook-ceph-operator
@@ -268,13 +279,13 @@ applyStorageConsumers() {
 
   # Get the names of all the storage consumer files in the backup directory and apply them
   echo -e "\nApplying Storage consumer CR"
-  consumers=`ls  $backupDirectoryName/resources/storageconsumers.ocs.openshift.io/namespaces/openshift-storage/`
+  consumers=`ls  $backupDirectoryName/storageconsumers`
   for entry in $consumers
   do
     echo "applying Consumer with name: "$entry
-    kubectl apply -f $backupDirectoryName/resources/storageconsumers.ocs.openshift.io/namespaces/openshift-storage/$entry
+    kubectl apply -f $backupDirectoryName/storageconsumers/$entry
 
-    consumerName=$(cat $backupDirectoryName/resources/storageconsumers.ocs.openshift.io/namespaces/openshift-storage/$entry | jq -r '.metadata .name')
+    consumerName=$(cat $backupDirectoryName/storageconsumers/$entry | jq -r '.metadata .name')
     uid=$(kubectl get storageconsumer ${consumerName} -o json | jq -r '.metadata .uid')
     echo "New uid for the consumer ${consumerName} is ${uid}"
   done
@@ -303,7 +314,7 @@ validate() {
     usage
     exit
   fi
- 
+
   if [[ -z "$1" ]]
   then
     echo "Missing kubeconfig!!"
@@ -312,12 +323,6 @@ validate() {
   fi
 
   echo "kubeconfig path: "$1
-
-  if [[ -z "$2" ]]; then
-    echo "Missing the s3 URL!!"
-    usage
-    exit 1
-  fi
 
 }
 
@@ -332,10 +337,10 @@ validateClusterRequirement() {
     cleanup
     exit
   fi
- 
+
   echo "Switching to the openshift-storage namespace"
   kubectl config set-context --current --namespace=openshift-storage
- 
+
   # Check if the cluster is a provider cluster
   echo "Checking if it's a provider cluster"
   if kubectl get deployments ocs-osd-controller-manager &> /dev/null; then
@@ -367,19 +372,10 @@ prepareData() {
 
 }
 
-validate "$1" "$2"
-
-mkdir backup && cd backup
- 
-echo "Downloading backup"
-curl -o backup.tar $2
- 
-echo "Extracting backup"
-tar -xf backup.tar
-cd ..
+validate "$1"
 
 backupDirectoryName=backup
- 
+
 export KUBECONFIG=$1
 
 validateClusterRequirement
@@ -387,7 +383,7 @@ validateClusterRequirement
 checkDeployerCSV
 
 deleteResources
- 
+
 applyPersistentVolumes
 
 uid=$(kubectl get cephcluster ocs-storagecluster-cephcluster -o json | jq -r  '.metadata .uid')
@@ -395,9 +391,9 @@ uid=$(kubectl get cephcluster ocs-storagecluster-cephcluster -o json | jq -r  '.
 applyPersistentVolumeClaims
 
 applySecrets
- 
+
 prepareData
- 
+
 applyMonDeploymens
 
 injectMonMap
@@ -407,20 +403,21 @@ updateConfigMap
 checkMonStatus
 
 applyOsds
- 
+
 echo -e "\nScaling up the rook ceph operator"
 kubectl scale deployment rook-ceph-operator --replicas 1
 
 sleep 60
 checkDeployerCSV
- 
+
 echo -e "\nRestart the rook ceph tools pod"
 kubectl rollout restart deployment rook-ceph-tools
 
 applyStorageConsumers
- 
+
+echo -e "\nRestart the ocs provider server pod"
+kubectl rollout restart deployment ocs-provider-server
+
 # Get the storage provider endpoint from the Kubernetes API and print it
 storageProviderEndpoint=$(kubectl get StorageCluster ocs-storagecluster -o json | jq -r '.status .storageProviderEndpoint')
 echo "Storage Cluster endpoint: ${storageProviderEndpoint}"
- 
-cleanup

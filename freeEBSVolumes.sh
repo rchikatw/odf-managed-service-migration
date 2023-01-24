@@ -9,7 +9,7 @@ usage() {
     1. kubectl installed.
     2. kubeconfig for the cluster
 
-  USAGE: "./remove-rook-osd-mon-pods.sh <kubeconfig>"
+  USAGE: "./freeEBSVolumes.sh <kubeconfig>"
 
 EOF
 }
@@ -21,6 +21,7 @@ kubeconfig_file="$1"
 if [[ ! -f "$kubeconfig_file" ]]
 then
   echo "kubeconfig file not found: $kubeconfig_file"
+  usage
   exit 1
 fi
 
