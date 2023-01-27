@@ -24,9 +24,11 @@ EOF
 unset workerNodeNames
 unset workerIps
 unset mons
+unset zoneToMonName
 declare -A workerNodeNames
 declare -A workerIps
 declare -A mons
+declare -A zoneToMonName
 
 cleanup() {
   # unset the arrays
@@ -124,20 +126,18 @@ applySecrets() {
 
 applyMonDeploymens() {
 
-  echo "Apply the mon deployments and Getting Mon names"
-  nodeCount=1
+  echo "Apply the mon deployments from backup"
   deployments=`ls  $backupDirectoryName/deployments/rook-ceph-mon*`
   for entry in $deployments
   do
-    # ownerReference gets added after starting rook-ceph-operator
-    cat <<< $(jq 'del(.metadata .ownerReferences)' $entry) > $entry
-    cat <<< $(jq --arg workerNodeName ${workerNodeNames[$nodeCount]} '.spec .template .spec .nodeSelector ."kubernetes.io/hostname" = $workerNodeName ' $entry) > $entry
-    kubectl apply -f $entry
-
     monName=${entry##*/}
     monName=$(echo $monName| cut -d'-' -f 4)
-    mons[${nodeCount}]=${monName[0]%%.*}
-    ((nodeCount=nodeCount+1))
+    monName=${monName[0]%%.*}
+    echo $monName
+    # ownerReference gets added after starting rook-ceph-operator
+    cat <<< $(jq 'del(.metadata .ownerReferences)' $entry) > $entry
+    cat <<< $(jq --arg workerNodeName ${workerNodeNames[$monName]} '.spec .template .spec .nodeSelector ."kubernetes.io/hostname" = $workerNodeName ' $entry) > $entry
+    kubectl apply -f $entry
   done
 
 }
@@ -148,14 +148,13 @@ injectMonMap() {
   ROOK_CEPH_MON_HOST=$(kubectl get secrets rook-ceph-config -o json | jq -r '.data .mon_host' | base64 -d)
   ROOK_CEPH_MON_INITIAL_MEMBERS=$(kubectl get secrets rook-ceph-config -o json | jq -r '.data .mon_initial_members' | base64 -d)
 
-  nodeCount=1
   deployments=`ls  $backupDirectoryName/deployments/rook-ceph-mon*`
   for entry in $deployments
   do
     mon=${entry##*/}
     mon=${mon[0]%%.*}
-
-    publicIp="--public-addr=${workerIps[$nodeCount]}"
+    monName=$(echo $mon| cut -d'-' -f 4)
+    publicIp="--public-addr=${workerIps[$monName]}"
     echo -e "PublicIP: "${publicIp}
     echo -e "\nBacking up mon deployemnt "$mon
 
@@ -164,7 +163,7 @@ injectMonMap() {
     cat <<< $(jq 'del(.spec .template  .spec .containers[0] .args[]|select(. | contains("--public-addr")))' ${mon}.json) > ${mon}.json
     cat <<< $(jq --arg publicIp $publicIp '.spec .template  .spec .containers[0] .args +=[$publicIp]' ${mon}.json ) > ${mon}.json
 
-    echo -e "\nWaiting for mon pod to come in crashbackloop status"
+    echo -e "\nWaiting for mon "$monName" pod to come in crashbackloop status"
     while true
     do
       podStatus=$(kubectl get pods | grep $mon | awk '{ print $3; exit }')
@@ -193,6 +192,7 @@ injectMonMap() {
     echo "extractMonmap: "${extractMonmap}
     echo "injectMonmap: "${injectMonmap}
 
+    echo -e "\nWaiting for mon "$monName" pod to come in Running status"
     while true
     do
       podStatus=$(kubectl get pods | grep $mon | awk '{ print $3; exit }')
@@ -205,14 +205,12 @@ injectMonMap() {
       sleep 2
     done
 
-    kubectl exec -it ${podName} -- /bin/bash -c " cluster_namespace=openshift-storage ; ceph-mon $extractMonmap ; sleep 5;  monmaptool --print /tmp/monmap ; monmaptool /tmp/monmap --rm ${mons[1]} ;  monmaptool /tmp/monmap --rm ${mons[2]} ; monmaptool /tmp/monmap --rm ${mons[3]} ; monmaptool /tmp/monmap --add ${mons[1]} ${workerIps[1]} ; monmaptool /tmp/monmap --add ${mons[2]} ${workerIps[2]} ; monmaptool /tmp/monmap --add ${mons[3]} ${workerIps[3]} ; sleep 2 ; ceph-mon $injectMonmap ; monmaptool --print /tmp/monmap ; "
+    kubectl exec -it ${podName} -- /bin/bash -c " cluster_namespace=openshift-storage ; ceph-mon $extractMonmap ;  monmaptool --print /tmp/monmap ; monmaptool /tmp/monmap --rm ${mons[1]} ;  monmaptool /tmp/monmap --rm ${mons[2]} ; monmaptool /tmp/monmap --rm ${mons[3]} ; monmaptool /tmp/monmap --add ${mons[1]} ${workerIps[${mons[1]}]} ; monmaptool /tmp/monmap --add ${mons[2]} ${workerIps[${mons[2]}]} ; monmaptool /tmp/monmap --add ${mons[3]} ${workerIps[${mons[3]}]} ; sleep 2 ; ceph-mon $injectMonmap ; monmaptool --print /tmp/monmap ; sleep 2"
 
     sleep 5
 
     echo -e "\napplying rook ceph mon deployment"
     kubectl replace --force -f $mon.json
-    ((nodeCount=nodeCount+1))
-
   done
 
 }
@@ -225,12 +223,10 @@ updateConfigMap() {
 
   data=""
   mapping=""
-  nodeCount=1
   for mon in "${mons[@]}";
   do
-    data+=","${mon}"="${workerIps[$nodeCount]}":6789"
-    mapping+=",\"${mon}\":{\"Name\":\"${workerNodeNames[$nodeCount]}\",\"Hostname\":\"${workerNodeNames[$nodeCount]}\",\"Address\":\"${workerIps[$nodeCount]}\"}"
-    ((nodeCount=nodeCount+1))
+    data+=","${mon}"="${workerIps[$mon]}":6789"
+    mapping+=",\"${mon}\":{\"Name\":\"${workerNodeNames[$mon]}\",\"Hostname\":\"${workerNodeNames[$mon]}\",\"Address\":\"${workerIps[$mon]}\"}"
   done
   export data=${data:1}
   cat <<< $(yq e '.data .data = env(data)' rook-ceph-mon-endpoints.yaml ) > rook-ceph-mon-endpoints.yaml
@@ -243,15 +239,15 @@ updateConfigMap() {
 }
 
 checkMonStatus() {
-  # Wait for atleast one mon to come up
+  # Wait for all the mons to come up
   echo -e "\nWaiting for all the mon's pod to come in Running status and expected mon container count to be available"
-  for monNumber in {1..3};
+  for mon in "${mons[@]}";
   do
     while true
     do
-      podStatus=$(kubectl get pods | grep rook-ceph-mon-${mons[$monNumber]} | awk '{ print $3; exit }')
-      containerCount=$(kubectl get pods | grep rook-ceph-mon-${mons[$monNumber]} | awk '{ print $2; exit }')
-      echo "podStatus is "$podStatus" containerCount is "$containerCount
+      podStatus=$(kubectl get pods | grep rook-ceph-mon-${mon} | awk '{ print $3; exit }')
+      containerCount=$(kubectl get pods | grep rook-ceph-mon-${mon} | awk '{ print $2; exit }')
+      echo "for mon "${mon}" podStatus is "$podStatus" containerCount is "$containerCount
       if [[ $podStatus == *"Running"* && $containerCount == "2/2" ]]
       then
           break
@@ -360,14 +356,38 @@ validateClusterRequirement() {
 
 }
 
+getMonFromZone() {
+  for i in "${!zoneToMonName[@]}"; do
+   if [[ "${zoneToMonName[$i]}" = "${1}" ]]; then
+       echo "${i}";
+   fi
+  done
+}
+
 prepareData() {
 
-  echo -e "\nGetting workerName, Ips"
+  echo -e "\nPreparing data"
+  echo -e "\nMapping monName to Zone"
   for nodeNumber in {1..3};
   do
-    workerNodeNames[$nodeNumber]=$(kubectl get nodes -o wide | grep worker | grep -v infra |  awk -v nodeNumber=$nodeNumber ' { awkArray[NR] = $1} END { print awkArray[nodeNumber]; }')
+    pvName=$(kubectl get pvc | grep rook-ceph-mon | awk -v nodeNumber=$nodeNumber '{ awkArray[NR] = $3} END { print awkArray[nodeNumber];}')
+    pvZone=$(kubectl get pv $pvName -ojson | jq '.metadata .labels ."topology.kubernetes.io/zone"' | sed "s/\"//g")
+    monName=$(kubectl get pv $pvName -ojson | jq '.spec .claimRef .name'   | sed "s/\"//g" | cut -d'-' -f 4)
+    mons[$nodeNumber]=$monName
+    zoneToMonName[$monName]=$pvZone
+  done
+
+  echo -e "\nMapping monName to workerName and IP"
+  for nodeNumber in {1..3};
+  do
+    nodeName=$(kubectl get nodes -o wide | grep worker | grep -v infra |  awk -v nodeNumber=$nodeNumber ' { awkArray[NR] = $1} END { print awkArray[nodeNumber]; }')
+    nodeZone=$(kubectl get node $nodeName -ojson | jq '.metadata .labels ."topology.kubernetes.io/zone"' | sed "s/\"//g")
+
+    monName=$(getMonFromZone $nodeZone)
+    workerNodeNames[$monName]=$nodeName
+
     publicIpAddress=$(kubectl get nodes -o wide | grep worker | grep -v infra | awk -v nodeNumber=$nodeNumber '{ awkArray[NR] = $6} END { print awkArray[nodeNumber]; }')
-    workerIps[$nodeNumber]=$publicIpAddress
+    workerIps[$monName]=$publicIpAddress
   done
 
 }
@@ -420,4 +440,4 @@ kubectl rollout restart deployment ocs-provider-server
 
 # Get the storage provider endpoint from the Kubernetes API and print it
 storageProviderEndpoint=$(kubectl get StorageCluster ocs-storagecluster -o json | jq -r '.status .storageProviderEndpoint')
-echo "Storage Cluster endpoint: ${storageProviderEndpoint}"
+echo "Storage Provider endpoint: ${storageProviderEndpoint}"
