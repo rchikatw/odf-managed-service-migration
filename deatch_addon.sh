@@ -9,7 +9,7 @@ usage() {
     1. A ROSA cluster with ODF MS Consumer addon installed.
     2. kubectl, rosa, ocm and jq installed.
 
-  USAGE: "./deatachaddon.sh <kubeconfig> <clusterID or clusterName>"
+  USAGE: "./deatachaddon.sh <kubeconfig> <clusterID>"
 
   Please note that we need to provide the absolute path to kubeconfig and clusterID or name
 

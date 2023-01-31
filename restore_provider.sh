@@ -390,21 +390,6 @@ prepareData() {
     workerIps[$monName]=$publicIpAddress
   done
 
-  for key in "${!mons[@]}"; do
-    echo "key=$key, value=${mons[$key]}"
-  done
-
-  for key in "${!zoneToMonName[@]}"; do
-    echo "key=$key, value=${zoneToMonName[$key]}"
-  done
-
-  for key in "${!workerNodeNames[@]}"; do
-    echo "key=$key, value=${workerNodeNames[$key]}"
-  done
-
-  for key in "${!workerIps[@]}"; do
-    echo "key=$key, value=${workerIps[$key]}"
-  done
 }
 
 validate "$1"
@@ -413,25 +398,25 @@ backupDirectoryName=backup
 
 export KUBECONFIG=$1
 
-# validateClusterRequirement
+validateClusterRequirement
 
-# checkDeployerCSV
+checkDeployerCSV
 
-# deleteResources
+deleteResources
 
-# applyPersistentVolumes
+applyPersistentVolumes
 
 uid=$(kubectl get cephcluster ocs-storagecluster-cephcluster -o json | jq -r  '.metadata .uid')
 
-# applyPersistentVolumeClaims
+applyPersistentVolumeClaims
 
-# applySecrets
+applySecrets
 
 prepareData
 
-#applyMonDeploymens
+applyMonDeploymens
 
-# injectMonMap
+injectMonMap
 
 updateConfigMap
 
