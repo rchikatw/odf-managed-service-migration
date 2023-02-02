@@ -59,7 +59,7 @@ validate() {
 
   echo "kubeconfig path: "$1
 
-  if [[ -z "$1" ]]
+  if [[ -z "$2" ]]
   then
     echo "Missing Cluster id!!"
     usage
@@ -90,7 +90,7 @@ kubectl scale deployment ocs-osd-controller-manager -n openshift-storage --repli
 
 echo -e "\nUninstalling consumer addon"
 #TODO: unintall from UI or from ROSA command
-rosa uninstall addons -c resoni-c ocs-consumer -y
+rosa uninstall addons -c $2 ocs-consumer -y
 
 while true
 do
@@ -134,6 +134,9 @@ kubectl delete managedocs managedocs -n openshift-storage --cascade='orphan'
 
 echo -e "\nDeleting addon deletion configmap"
 kubectl delete configmap ocs-consumer -n openshift-storage
+
+# echo -e "\nDeleting addon catalog source"
+# kubectl delete catsrc addon-ocs-consumer-catalog -n openshift-storage
 
 echo -e "\nScaling up the addon-operator-manager"
 kubectl scale deployment addon-operator-manager -n openshift-addon-operator --replicas 1

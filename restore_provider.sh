@@ -133,7 +133,6 @@ applyMonDeploymens() {
     monName=${entry##*/}
     monName=$(echo $monName| cut -d'-' -f 4)
     monName=${monName[0]%%.*}
-    echo $monName
     # ownerReference gets added after starting rook-ceph-operator
     cat <<< $(jq 'del(.metadata .ownerReferences)' $entry) > $entry
     cat <<< $(jq --arg workerNodeName ${workerNodeNames[$monName]} '.spec .template .spec .nodeSelector ."kubernetes.io/hostname" = $workerNodeName ' $entry) > $entry
