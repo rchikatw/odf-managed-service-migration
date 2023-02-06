@@ -9,7 +9,7 @@ usage() {
     2. aws cli,kubectl and jq installed.
     3. access to aws account from cli where volume's are available.
 
-  USAGE: "./updateTags.sh "
+  USAGE: "./updateTags.sh <kubeconfig>"
 
   To install jq & aws CLI Refer:
   1. jq: https://www.cyberithub.com/how-to-install-jq-json-processor-on-rhel-centos-7-8/
@@ -39,13 +39,23 @@ else
   exit
 fi
 
-echo -e "\nFetching volumeIds "
+if [[ -z "$1" ]]
+then
+  echo "Missing kubeconfig!!"
+  exit 1
+fi
+
+echo "kubeconfig path: "$1
+
+export KUBECONFIG=$1
+
+echo -e "\n Reading volume Ids from backup"
 
 pvFilenames=`ls  backup/persistentvolumes/`
 for pv in $pvFilenames
 do
   volumeId=$(cat backup/persistentvolumes/$pv | jq -r '.spec .awsElasticBlockStore .volumeID |  split("/") | .[-1]')
-  echo -e "Updating tags for volumeId "$volumeId
+  echo -e "Updating tags for volume Id "$volumeId
   region=$(cat backup/persistentvolumes/$pv | jq -r '.metadata .labels ."topology.kubernetes.io/region"')
   keyName=$(aws ec2 describe-volumes --volume-id $volumeId --filters Name=tag:kubernetes.io/created-for/pvc/namespace,Values=openshift-storage  --region $region --query "Volumes[*].Tags" | jq .[] | jq -r '.[]| select (.Value == "owned")|.Key')
   backupKeyName=${keyName##*/}
@@ -59,6 +69,6 @@ do
   restoreKeyName=${keyName##*/}
   restoreValue=${nameValue/$backupKeyName/$restoreKeyName}
   aws ec2 create-tags --tags Key=Name,Value=$restoreValue --resources $volumeId --region $region
-  echo -e "Updated tags for volumeId "$volumeId
+  echo -e "Updated tags for volume Id "$volumeId
 
 done
