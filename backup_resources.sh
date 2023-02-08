@@ -7,26 +7,23 @@ usage() {
 
   Requirements:
     1. kubectl installed.
-    2. kubeconfig for the cluster
+    2. Cluster id of backup cluster
 
-  USAGE: "./backup_resources.sh <kubeconfig>"
+  USAGE: "./backup_resources.sh"
 
 EOF
 }
 
-# Set the kubeconfig file.
-kubeconfig_file="$1"
+echo "Enter the cluster id"
+read clusterId
 
-# Check if the kubeconfig file exists.
-if [[ ! -f "$kubeconfig_file" ]]
-then
-  echo "kubeconfig file not found: $kubeconfig_file"
-  usage
-  exit 1
-fi
+storeKubeconfigAndLoginCluster() {
+  ocm get /api/clusters_mgmt/v1/clusters/${clusterId}/credentials | jq -r .kubeconfig > ${clusterId}
+  kubeconfigPath=$(readlink -f ${clusterId})
+  export KUBECONFIG=$kubeconfigPath
+}
 
-# Set the kubeconfig file in the KUBECONFIG environment variable.
-export KUBECONFIG="$kubeconfig_file"
+storeKubeconfigAndLoginCluster
 
 echo -e "Creating required directories for backup"
 mkdir backup
