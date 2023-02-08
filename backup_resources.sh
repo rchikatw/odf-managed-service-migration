@@ -19,8 +19,7 @@ read clusterId
 
 storeKubeconfigAndLoginCluster() {
   ocm get /api/clusters_mgmt/v1/clusters/${clusterId}/credentials | jq -r .kubeconfig > ${clusterId}
-  kubeconfigPath=$(readlink -f ${clusterId})
-  export KUBECONFIG=$kubeconfigPath
+  export KUBECONFIG=$(readlink -f ${clusterId})
 }
 
 storeKubeconfigAndLoginCluster
