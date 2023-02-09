@@ -1,4 +1,5 @@
 #!/bin/bash
+source ./utils.sh
 
 usage() {
   cat << EOF
@@ -6,62 +7,44 @@ usage() {
   Update the StorageConsumer id and StorageProviderEndpoint in the StorageCluster CR.
 
   Requirements:
-    1. A ROSA cluster with ODF MS Consumer addon installed.
+    1. A ROSA cluster with ODF in external mode.
     2. kubectl & curl installed.
 
-  USAGE: "./restore_consumer.sh <kubeconfig> <storageConsumerUid> <storageProviderEndpoint>"
+  USAGE: "./restore_consumer.sh"
 
+  To install kubectl, rosa, ocm & jq refer:
+  1. kubectl: ${link[kubectl]}
+  2. curl: ${link[curl]}
 
 EOF
 }
 
-validate() {
+if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
+  usage
+  exit 0
+fi
 
-  if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
-    usage
-    exit 0
-  fi
+validate "kubectl" "curl"
 
-  if [[ -z "$1" ]]
-  then
-    echo "Missing kubeconfig!!"
-    usage
-    exit 1
-  fi
+echo "Enter the clusterID for consumer:"
+read clusterID
 
-  echo "kubeconfig path: "$1
+storeKubeconfigAndLoginCluster "$clusterID"
 
-  if [[ -z "$2" ]]
-  then
-    echo "Missing Storage Consumer uid!!"
-    usage
-    exit 1
-  fi
+echo "Enter the Storage Consumer UID from the restore provider script:"
+read storageConsumerUid
 
-  echo "Storage Consumer uid: "$2
+echo "Enter the Storage Provider endpoint from the restore provider script:"
+read storageProviderEndpoint
 
-  if [[ -z "$3" ]]
-  then
-    echo "Missing Storage Provider endpoint!!"
-    usage
-    exit 1
-  fi
-
-  echo "Storage Provider endpoint: "$3
-
-}
-
-validate "$1" "$2" "$3"
-export KUBECONFIG=$1
-
-kubectl patch storagecluster ocs-storagecluster -n openshift-storage -p '{"spec": {"externalStorage": {"storageProviderEndpoint": "'${3}'"}}}' --type merge
+kubectl patch storagecluster ocs-storagecluster -n openshift-storage -p '{"spec": {"externalStorage": {"storageProviderEndpoint": "'${storageProviderEndpoint}'"}}}' --type merge
 
 kill $(lsof -t -i:8081)
 kubectl proxy --port=8081 &
 
 sleep 2
 
-DATA="{\"status\":{\"externalStorage\":{\"id\":\"$2\"}}}"
+DATA="{\"status\":{\"externalStorage\":{\"id\":\"$storageConsumerUid\"}}}"
 ENDPOINT="localhost:8081/apis/ocs.openshift.io/v1/namespaces/openshift-storage/storageclusters/ocs-storagecluster/status"
 curl -X PATCH -H 'Content-Type: application/merge-patch+json' --data ${DATA} ${ENDPOINT}
 
