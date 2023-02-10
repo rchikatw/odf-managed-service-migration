@@ -1,32 +1,33 @@
 #!/bin/bash
+source ./utils.sh
 
 usage() {
   cat << EOF
 
-  Remove the osd and mon pods on the provider cluster.
+  Scale down the osd and mon pods on the provider cluster.
 
   Requirements:
     1. kubectl installed.
-    2. kubeconfig for the cluster
 
-  USAGE: "./freeEBSVolumes.sh <kubeconfig>"
+  USAGE: "./freeEBSVolumes.sh"
+
+  To install kubectl refer:
+  1. kubectl: ${link[kubectl]}
 
 EOF
 }
 
-# Set the kubeconfig file.
-kubeconfig_file="$1"
-
-# Check if the kubeconfig file exists.
-if [[ ! -f "$kubeconfig_file" ]]
-then
-  echo "kubeconfig file not found: $kubeconfig_file"
+if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   usage
-  exit 1
+  exit 0
 fi
 
-# Set the kubeconfig file in the KUBECONFIG environment variable.
-export KUBECONFIG="$kubeconfig_file"
+validate "kubectl"
+
+echo "Enter the clusterID of provider cluster:"
+read clusterID
+
+storeKubeconfigAndLoginCluster "$clusterID"
 
 # Switch to the openshift-storage namespace.
 echo "Switching to the openshift-storage namespace"

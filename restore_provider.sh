@@ -1,4 +1,5 @@
 #!/bin/bash
+source ./utils.sh
 
 usage() {
   cat << EOF
@@ -14,12 +15,18 @@ usage() {
 
   Please note that we need to provide the absolute path to kubeconfig and s3 URL in ' '
 
-  To install jq or yq Refer:
-  1. yq: https://www.cyberithub.com/how-to-install-yq-command-line-tool-on-linux-in-5-easy-steps/
-  2. jq: https://www.cyberithub.com/how-to-install-jq-json-processor-on-rhel-centos-7-8/
+  To install kubectl, jq or yq Refer:
+    1. kubectl: ${link[kubectl]}
+    2. yq: ${link[yq]}
+    3. jq: ${link[jq]}
 
 EOF
 }
+
+if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
+  usage
+  exit 0
+fi
 
 unset workerNodeNames
 unset workerIps
@@ -29,18 +36,6 @@ declare -A workerNodeNames
 declare -A workerIps
 declare -A mons
 declare -A zoneToMonName
-
-cleanup() {
-  # unset the arrays
-  unset workerNodeNames
-  unset workerIps
-  unset mons
-
-  # Remove the backup and temporary files
-  rm -rf backup
-  rm rook-ceph-mon-*.json
-  rm rook-ceph-mon-endpoints.yaml
-}
 
 checkDeployerCSV() {
   echo -e "\nWaiting for ocs-osd-deployer to come in Succeeded phase"
@@ -275,6 +270,7 @@ applyStorageConsumers() {
   # Get the names of all the storage consumer files in the backup directory and apply them
   echo -e "\nApplying Storage consumer CR"
   consumers=`ls  $backupDirectoryName/storageconsumers`
+  printf "Consumer Name \t New StorageConsumer UID\n"
   for entry in $consumers
   do
     echo "applying Consumer with name: "$entry
@@ -282,42 +278,8 @@ applyStorageConsumers() {
 
     consumerName=$(cat $backupDirectoryName/storageconsumers/$entry | jq -r '.metadata .name')
     uid=$(kubectl get storageconsumer ${consumerName} -o json | jq -r '.metadata .uid')
-    echo "New uid for the consumer ${consumerName} is ${uid}"
+    printf "%s \t %s\n" ${consumerName} ${uid}
   done
-
-}
-
-validate() {
-
-  if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
-    usage
-    exit 0
-  fi
-
-  if hash jq 2>/dev/null; then
-    echo "OK, you have jq installed. We will use that."
-  else
-    echo "jq is not installed, Please install and rerun the restore script"
-    usage
-    exit
-  fi
-
-  if hash yq 2>/dev/null; then
-    echo "OK, you have yq installed. We will use that."
-  else
-    echo "yq is not installed, Please install and rerun the restore script"
-    usage
-    exit
-  fi
-
-  if [[ -z "$1" ]]
-  then
-    echo "Missing kubeconfig!!"
-    usage
-    exit 1
-  fi
-
-  echo "kubeconfig path: "$1
 
 }
 
@@ -391,11 +353,14 @@ prepareData() {
 
 }
 
-validate "$1"
+validate "jq" "yq" "kubectl"
+
+echo "Enter the clusterID of provider cluster:"
+read clusterID
+
+storeKubeconfigAndLoginCluster "$clusterID"
 
 backupDirectoryName=backup
-
-export KUBECONFIG=$1
 
 validateClusterRequirement
 

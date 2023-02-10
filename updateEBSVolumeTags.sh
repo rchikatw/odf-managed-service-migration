@@ -1,19 +1,22 @@
 #!/bin/bash
+source ./utils.sh
+
 usage() {
   cat << EOF
 
-  Update volume tags for backup cluster.
+  Update EBS volume name and tags for backup cluster.
 
   Requirements:
-    1. Backup of resources from the old cluster.
-    2. aws cli,kubectl and jq installed.
+    1. backup of resources from the old cluster.
+    2. kubectl, AWS cli and jq installed.
     3. access to aws account from cli where volume's are available.
 
   USAGE: "./updateTags.sh <kubeconfig>"
 
-  To install jq & aws CLI Refer:
-  1. jq: https://www.cyberithub.com/how-to-install-jq-json-processor-on-rhel-centos-7-8/
-  2. aws: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+  To install kubectl, jq & aws CLI Refer:
+  1. kubectl: ${link[kubectl]}
+  2. jq: ${link[jq]}
+  3. aws: ${link[aws]}
 
 EOF
 }
@@ -23,52 +26,32 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
-if hash jq 2>/dev/null; then
-  echo "OK, you have jq installed. We will use that."
-else
-  echo "jq is not installed, Please install and rerun the restore script"
-  usage
-  exit
-fi
+validate "jq" "aws" "kubectl"
 
-if hash aws 2>/dev/null; then
-  echo "OK, you have aws CLI installed. We will use that."
-else
-  echo "aws CLI is not installed, Please install and rerun the restore script"
-  usage
-  exit
-fi
+echo "Enter the clusterID of restore/migrated cluster:"
+read clusterID
 
-if [[ -z "$1" ]]
-then
-  echo "Missing kubeconfig!!"
-  exit 1
-fi
+storeKubeconfigAndLoginCluster "$clusterID"
 
-echo "kubeconfig path: "$1
-
-export KUBECONFIG=$1
-
-echo -e "\n Reading volume Ids from backup"
+echo "Reading volume IDs from backup"
 
 pvFilenames=`ls  backup/persistentvolumes/`
 for pv in $pvFilenames
 do
-  volumeId=$(cat backup/persistentvolumes/$pv | jq -r '.spec .awsElasticBlockStore .volumeID |  split("/") | .[-1]')
-  echo -e "Updating tags for volume Id "$volumeId
+volumeID=$(cat backup/persistentvolumes/$pv | jq -r '.spec .awsElasticBlockStore .volumeID |  split("/") | .[-1]')
+  echo -e "Updating tags for volume Id "$volumeID
   region=$(cat backup/persistentvolumes/$pv | jq -r '.metadata .labels ."topology.kubernetes.io/region"')
-  keyName=$(aws ec2 describe-volumes --volume-id $volumeId --filters Name=tag:kubernetes.io/created-for/pvc/namespace,Values=openshift-storage  --region $region --query "Volumes[*].Tags" | jq .[] | jq -r '.[]| select (.Value == "owned")|.Key')
+  keyName=$(aws ec2 describe-volumes --volume-id $volumeID --filters Name=tag:kubernetes.io/created-for/pvc/namespace,Values=openshift-storage  --region $region --query "Volumes[*].Tags" | jq .[] | jq -r '.[]| select (.Value == "owned")|.Key')
   backupKeyName=${keyName##*/}
-  aws ec2 delete-tags --tags Key=$keyName --resources $volumeId --region $region
+  aws ec2 delete-tags --tags Key=$keyName --resources $volumeID --region $region
 
   #Update the tag with correct key
   keyName="kubernetes.io/cluster/"$(kubectl get machineset $(kubectl get machineset -n openshift-machine-api | awk 'NR!=1 {print}' | awk '{ print $1; exit }') -n openshift-machine-api -o json | jq -r '.metadata .labels ."machine.openshift.io/cluster-api-cluster"')
-  aws ec2 create-tags --tags Key=$keyName,Value=owned --resources $volumeId --region $region
+  aws ec2 create-tags --tags Key=$keyName,Value=owned --resources $volumeID --region $region
 
-  nameValue=$(aws ec2 describe-volumes --volume-id $volumeId --filters Name=tag:kubernetes.io/created-for/pvc/namespace,Values=openshift-storage  --region $region --query "Volumes[*].Tags" | jq .[] | jq -r '.[]| select (.Key == "Name")|.Value')
+  nameValue=$(aws ec2 describe-volumes --volume-id $volumeID --filters Name=tag:kubernetes.io/created-for/pvc/namespace,Values=openshift-storage  --region $region --query "Volumes[*].Tags" | jq .[] | jq -r '.[]| select (.Key == "Name")|.Value')
   restoreKeyName=${keyName##*/}
   restoreValue=${nameValue/$backupKeyName/$restoreKeyName}
-  aws ec2 create-tags --tags Key=Name,Value=$restoreValue --resources $volumeId --region $region
-  echo -e "Updated tags for volume Id "$volumeId
-
+  aws ec2 create-tags --tags Key=Name,Value=$restoreValue --resources $volumeID --region $region
+  echo -e "Updated tags for volume Id "$volumeID
 done

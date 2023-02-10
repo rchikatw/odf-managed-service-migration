@@ -1,4 +1,5 @@
 #!/bin/bash
+source ./utils.sh
 
 usage() {
   cat << EOF
@@ -9,68 +10,28 @@ usage() {
     1. A ROSA cluster with ODF MS Consumer addon installed.
     2. kubectl, rosa, ocm and jq installed.
 
-  USAGE: "./deatachaddon.sh <kubeconfig> <clusterID>"
+  USAGE: "./deatach_addon.sh"
 
-  Please note that we need to provide the absolute path to kubeconfig and clusterID or name
-
-  To install jq or yq Refer:
-  1. jq: https://www.cyberithub.com/how-to-install-jq-json-processor-on-rhel-centos-7-8/
+  To install kubectl, rosa, ocm & jq refer:
+  1. kubectl: ${link[kubectl]}
+  2. jq: ${link[jq]}
+  3. rosa: ${link[rosa]}
+  4. ocm: ${link[ocm]}
 
 EOF
 }
 
-validate() {
+if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
+  usage
+  exit 0
+fi
 
-  if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
-    usage
-    exit 0
-  fi
+validate "kubectl" "ocm" "rosa" "jq"
 
-  if hash rosa 2>/dev/null; then
-    echo "OK, you have rosa installed. We will use that."
-  else
-    echo "rosa is not installed, Please install and rerun the restore script"
-    usage
-    exit
-  fi
+echo "Enter the clusterID for consumer:"
+read clusterID
 
-  if hash ocm 2>/dev/null; then
-    echo "OK, you have ocm installed. We will use that."
-  else
-    echo "ocm is not installed, Please install and rerun the restore script"
-    usage
-    exit
-  fi
-
-  if hash jq 2>/dev/null; then
-    echo "OK, you have jq installed. We will use that."
-  else
-    echo "jq is not installed, Please install and rerun the restore script"
-    usage
-    exit
-  fi
-
-  if [[ -z "$1" ]]
-  then
-    echo "Missing kubeconfig!!"
-    usage
-    exit 1
-  fi
-
-  echo "kubeconfig path: "$1
-
-  if [[ -z "$2" ]]
-  then
-    echo "Missing Cluster id!!"
-    usage
-    exit 1
-  fi
-
-}
-
-validate "$1" "$2"
-
-export KUBECONFIG=$1
+storeKubeconfigAndLoginCluster "$clusterID"
 
 echo -e "\nScaling down the addon-operator-manager"
 kubectl scale deployment addon-operator-manager -n openshift-addon-operator --replicas 0
@@ -90,12 +51,12 @@ kubectl scale deployment ocs-osd-controller-manager -n openshift-storage --repli
 
 echo -e "\nUninstalling consumer addon"
 #TODO: unintall from UI or from ROSA command
-rosa uninstall addons -c $2 ocs-consumer -y
+rosa uninstall addons -c $clusterID ocs-consumer -y
 
 while true
 do
 
-  state=$(ocm get /api/clusters_mgmt/v1/clusters/$2/addons | jq  -r '. | select(.items != null) | .items[] | select(.id == "ocs-consumer") | .state')
+  state=$(ocm get /api/clusters_mgmt/v1/clusters/$clusterID/addons | jq  -r '. | select(.items != null) | .items[] | select(.id == "ocs-consumer") | .state')
 
   echo "waiting for addon to be uninstalled current state is "$state
   if [[ $state == "deleting" ]];
@@ -112,7 +73,7 @@ kubectl delete csv $(kubectl get csv -n openshift-storage | grep ocs-osd | awk '
 while true
 do
 
-  state=$(ocm get /api/clusters_mgmt/v1/clusters/$2/addons | jq  -r '. | select(.items != null) | .items[] | select(.id == "ocs-consumer") | .state')
+  state=$(ocm get /api/clusters_mgmt/v1/clusters/$clusterID/addons | jq  -r '. | select(.items != null) | .items[] | select(.id == "ocs-consumer") | .state')
 
   echo "waiting for addon to be uninstalled current state is "$state
   if [ -z "$state" ];
