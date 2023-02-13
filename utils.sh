@@ -11,7 +11,7 @@ link[rosa]="https://console.redhat.com/openshift/downloads"
 link[aws]="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
 link[curl]="https://curl.se/download.html"
 
-mkdir kubeconfig
+mkdir -p kubeconfig
 
 storeKubeconfigAndLoginCluster() {
   response=$(ocm get /api/clusters_mgmt/v1/clusters/${1}/credentials 2>&1)
@@ -41,6 +41,7 @@ validate() {
 }
 
 cleanup() {
+  echo "Cleaning up..."
   # unset the arrays
   unset workerNodeNames
   unset workerIps
@@ -50,6 +51,6 @@ cleanup() {
   # Remove the backup and temporary files
   rm -rf backup
   rm -rf kubeconfig
-  rm rook-ceph-mon-*.json
-  rm rook-ceph-mon-endpoints.yaml
+  rm -f rook-ceph-mon-*.json
+  rm -f rook-ceph-mon-endpoints.yaml
 }

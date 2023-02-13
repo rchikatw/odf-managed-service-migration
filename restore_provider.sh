@@ -399,6 +399,9 @@ kubectl rollout restart deployment rook-ceph-tools
 
 applyStorageConsumers
 
+# patching the storageCluster to add the necessary fields to migrate to odf 4.12
+# kubectl patch storagecluster ocs-storagecluster -p '{"spec":{ "defaultStorageProfile":"default", "storageProfiles": [{"deviceClass":"ssd","name":"default"}] }}' --type=merge
+
 echo -e "\nRestart the ocs provider server pod"
 kubectl rollout restart deployment ocs-provider-server
 
