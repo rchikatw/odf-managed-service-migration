@@ -11,7 +11,7 @@ usage() {
     2. kubectl, AWS cli and jq installed.
     3. access to aws account from cli where volume's are available.
 
-  USAGE: "./updateTags.sh <kubeconfig>"
+  USAGE: "./updateTags.sh"
 
   To install kubectl, jq & aws CLI Refer:
   1. kubectl: ${link[kubectl]}
