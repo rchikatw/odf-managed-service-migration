@@ -1,0 +1,5 @@
+backup/
+kubeconfig/
+migrate.sh
+rook-ceph-mon-*
+*.log
