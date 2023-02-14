@@ -32,6 +32,7 @@ read clusterID
 storeKubeconfigAndLoginCluster "$clusterID"
 
 echo -e "Creating required directories for backup"
+rm -rf backup
 mkdir backup
 cd backup
 mkdir -p {deployments,persistentvolumes,persistentvolumeclaims,secrets,storageconsumers}
