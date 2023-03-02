@@ -50,6 +50,7 @@ cleanup() {
 
   # Remove the backup and temporary files
   rm -rf backup
+  rm -rf s3backup
   rm -rf kubeconfig
   rm -f rook-ceph-mon-*.json
   rm -f rook-ceph-mon-endpoints.yaml
