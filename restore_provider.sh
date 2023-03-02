@@ -11,7 +11,7 @@ usage() {
     2. Backup of resources from the old cluster.
     3. kubectl, yq and jq installed.
 
-  USAGE: "./restore_provider.sh <kubeconfig>"
+  USAGE: "./restore_provider.sh"
 
   Please note that we need to provide the absolute path to kubeconfig and s3 URL in ' '
 
@@ -399,8 +399,11 @@ kubectl rollout restart deployment rook-ceph-tools
 
 applyStorageConsumers
 
+version=$(kubectl get csv $(kubectl get csv -n openshift-storage | grep odf-operator | awk '{print $1; exit}') -n openshift-storage -ojson | jq -r '.spec .version')
 # patching the storageCluster to add the necessary fields to migrate to odf 4.12
-# kubectl patch storagecluster ocs-storagecluster -p '{"spec":{ "defaultStorageProfile":"default", "storageProfiles": [{"deviceClass":"ssd","name":"default"}] }}' --type=merge
+if [[ ${version:0:4} == "4.12" ]]; then
+  kubectl patch storagecluster ocs-storagecluster -p '{"spec":{ "defaultStorageProfile":"default", "storageProfiles": [{"deviceClass":"ssd","name":"default"}] }}' --type=merge
+fi
 
 echo -e "\nRestart the ocs provider server pod"
 kubectl rollout restart deployment ocs-provider-server
