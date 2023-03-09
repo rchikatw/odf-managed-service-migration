@@ -10,7 +10,7 @@ usage() {
     1. kubectl, ocm installed.
     2. clusterID for the cluster
 
-  USAGE: "./backup_resources.sh"
+  USAGE: "./backup_resources.sh <incluster|s3>"
 
   To install kubectl & ocm refer:
   1. kubectl: ${link[kubectl]}
@@ -24,7 +24,6 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
-validate "kubectl" "ocm" "curl"
 
 echo -e "Creating required directories for backup"
 rm -rf backup
@@ -33,16 +32,8 @@ cd backup
 mkdir -p {deployments,persistentvolumes,persistentvolumeclaims,secrets,storageconsumers}
 cd ..
 
-echo "Enter 1 to take a backup or 2 to retrive it from s3 bucket"
-read option
-
-case "$option" in
-  1)
-    echo "Enter the clusterID:"
-    read clusterID
-
-    storeKubeconfigAndLoginCluster "$clusterID"
-
+case "$1" in
+  incluster)
     cd backup/
 
     echo -e "Backing up Deployments"
@@ -65,7 +56,7 @@ case "$option" in
     cd ../storageconsumers
     kubectl get storageconsumers -n openshift-storage | awk 'NR!=1 {print}' | awk '{ cmd="kubectl get storageconsumers "$1" -n openshift-storage -o json > " $1".json"; system(cmd) }'
     ;;
-  2)
+  s3)
     echo "Enter s3 URL"
     read s3URL
 

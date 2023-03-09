@@ -10,7 +10,7 @@ usage() {
     1. A ROSA cluster with ODF in external mode.
     2. kubectl & curl installed.
 
-  USAGE: "./restore_consumer.sh"
+  USAGE: "./restore_consumer.sh <storageProviderEndpoint> <StorageConsumerUID>"
 
   To install kubectl, rosa, ocm & jq refer:
   1. kubectl: ${link[kubectl]}
@@ -24,27 +24,14 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
-validate "kubectl" "curl"
-
-echo "Enter the clusterID for consumer:"
-read clusterID
-
-storeKubeconfigAndLoginCluster "$clusterID"
-
-echo "Enter the Storage Consumer UID from the restore provider script:"
-read storageConsumerUid
-
-echo "Enter the Storage Provider endpoint from the restore provider script:"
-read storageProviderEndpoint
-
-kubectl patch storagecluster ocs-storagecluster -n openshift-storage -p '{"spec": {"externalStorage": {"storageProviderEndpoint": "'${storageProviderEndpoint}'"}}}' --type merge
+kubectl patch storagecluster ocs-storagecluster -n openshift-storage -p '{"spec": {"externalStorage": {"storageProviderEndpoint": "'${1}'"}}}' --type merge
 
 kill $(lsof -t -i:8081)
 kubectl proxy --port=8081 &
 
 sleep 2
 
-DATA="{\"status\":{\"externalStorage\":{\"id\":\"$storageConsumerUid\"}}}"
+DATA="{\"status\":{\"externalStorage\":{\"id\":\"$2\"}}}"
 ENDPOINT="localhost:8081/apis/ocs.openshift.io/v1/namespaces/openshift-storage/storageclusters/ocs-storagecluster/status"
 curl -X PATCH -H 'Content-Type: application/merge-patch+json' --data ${DATA} ${ENDPOINT}
 
