@@ -22,13 +22,6 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
-validate "kubectl"
-
-echo "Enter the clusterID of provider cluster:"
-read clusterID
-
-storeKubeconfigAndLoginCluster "$clusterID"
-
 # Switch to the openshift-storage namespace.
 echo "Switching to the openshift-storage namespace"
 kubectl config set-context --current --namespace=openshift-storage

@@ -11,7 +11,7 @@ usage() {
     2. kubectl, AWS cli and jq installed.
     3. access to aws account from cli where volume's are available.
 
-  USAGE: "./updateTags.sh"
+  USAGE: "./updageEBSVolumeTags.sh"
 
   To install kubectl, jq & aws CLI Refer:
   1. kubectl: ${link[kubectl]}
@@ -25,13 +25,6 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   usage
   exit 0
 fi
-
-validate "jq" "aws" "kubectl"
-
-echo "Enter the clusterID of restore/migrated cluster:"
-read clusterID
-
-storeKubeconfigAndLoginCluster "$clusterID"
 
 echo "Reading volume IDs from backup"
 

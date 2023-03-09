@@ -31,11 +31,9 @@ fi
 unset workerNodeNames
 unset workerIps
 unset mons
-unset zoneToMonName
 declare -A workerNodeNames
 declare -A workerIps
 declare -A mons
-declare -A zoneToMonName
 
 checkDeployerCSV() {
   echo -e "\nWaiting for ocs-osd-deployer to come in Succeeded phase"
@@ -270,15 +268,10 @@ applyStorageConsumers() {
   # Get the names of all the storage consumer files in the backup directory and apply them
   echo -e "\nApplying Storage consumer CR"
   consumers=`ls  $backupDirectoryName/storageconsumers`
-  printf "Consumer Name \t New StorageConsumer UID\n"
   for entry in $consumers
   do
     echo "applying Consumer with name: "$entry
     kubectl apply -f $backupDirectoryName/storageconsumers/$entry
-
-    consumerName=$(cat $backupDirectoryName/storageconsumers/$entry | jq -r '.metadata .name')
-    uid=$(kubectl get storageconsumer ${consumerName} -o json | jq -r '.metadata .uid')
-    printf "%s \t %s\n" ${consumerName} ${uid}
   done
 
 }
@@ -317,48 +310,25 @@ validateClusterRequirement() {
 
 }
 
-getMonFromZone() {
-  for i in "${!zoneToMonName[@]}"; do
-   if [[ "${zoneToMonName[$i]}" = "${1}" ]]; then
-       echo "${i}";
-   fi
-  done
-}
-
 prepareData() {
 
   echo -e "\nPreparing data"
-  echo -e "\nMapping monName to Zone"
+  echo -e "\nMapping monName to nodeName and nodeIP"
   for nodeNumber in {1..3};
   do
     pvName=$(kubectl get pvc | grep rook-ceph-mon | awk -v nodeNumber=$nodeNumber '{ awkArray[NR] = $3} END { print awkArray[nodeNumber];}')
     pvZone=$(kubectl get pv $pvName -ojson | jq '.metadata .labels ."topology.kubernetes.io/zone"' | sed "s/\"//g")
     monName=$(kubectl get pv $pvName -ojson | jq '.spec .claimRef .name'   | sed "s/\"//g" | cut -d'-' -f 4)
     mons[$nodeNumber]=$monName
-    zoneToMonName[$monName]=$pvZone
-  done
 
-  echo -e "\nMapping monName to workerName and IP"
-  for nodeNumber in {1..3};
-  do
-    nodeName=$(kubectl get nodes -o wide | grep worker | grep -v infra |  awk -v nodeNumber=$nodeNumber ' { awkArray[NR] = $1} END { print awkArray[nodeNumber]; }')
-    nodeZone=$(kubectl get node $nodeName -ojson | jq '.metadata .labels ."topology.kubernetes.io/zone"' | sed "s/\"//g")
-
-    monName=$(getMonFromZone $nodeZone)
+    nodeName=$(kubectl get nodes -owide --selector=topology.kubernetes.io/zone=$pvZone | grep worker | grep -v infra | awk '{print $1; exit}')
+    nodeIP=$(kubectl get nodes -owide --selector=topology.kubernetes.io/zone=$pvZone | grep worker | grep -v infra | awk '{print $6; exit}')
     workerNodeNames[$monName]=$nodeName
-
-    publicIpAddress=$(kubectl get nodes -o wide | grep worker | grep -v infra | awk -v nodeNumber=$nodeNumber '{ awkArray[NR] = $6} END { print awkArray[nodeNumber]; }')
-    workerIps[$monName]=$publicIpAddress
+    workerIps[$monName]=$nodeIP
   done
 
 }
 
-validate "jq" "yq" "kubectl"
-
-echo "Enter the clusterID of provider cluster:"
-read clusterID
-
-storeKubeconfigAndLoginCluster "$clusterID"
 
 backupDirectoryName=backup
 

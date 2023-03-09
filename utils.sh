@@ -10,10 +10,20 @@ link[kubectl]="https://kubernetes.io/docs/tasks/tools/"
 link[rosa]="https://console.redhat.com/openshift/downloads"
 link[aws]="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
 link[curl]="https://curl.se/download.html"
+link[ocm-backplane]="https://gitlab.cee.redhat.com/service/backplane-cli"
 
-mkdir -p kubeconfig
+loginCluster() {
+  if [[ "${1}" == "-d" ]];
+  then
+  storeKubeconfigAndLoginCluster $2
+  else
+  ocm-backplane login $1
+  fi
+}
 
 storeKubeconfigAndLoginCluster() {
+  mkdir -p kubeconfig
+
   response=$(ocm get /api/clusters_mgmt/v1/clusters/${1}/credentials 2>&1)
   kind=$(echo $response | jq .kind | sed "s/\"//g")
   if [[ $kind == "ClusterCredentials" ]]; then
@@ -47,6 +57,7 @@ cleanup() {
   unset workerIps
   unset mons
   unset link
+  unset storageConsumerUID
 
   # Remove the backup and temporary files
   rm -rf backup

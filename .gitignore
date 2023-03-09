@@ -1,6 +1,5 @@
 backup/
 kubeconfig/
-migrate.sh
 rook-ceph-mon-*
 s3backup/
 s3backup.tar
