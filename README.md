@@ -5,6 +5,8 @@
 - deatch_addon.sh -> Deatch the ODF MS consumer addon from hive.
 - restore_consumer.sh -> Update the StorageConsumer id and StorageProviderEndpoint in the StorageCluster CR.
 - updateEBSVolumeTags.sh -> Update the aws ebs volume tags for osd's and mon's from provider cluster.
+- migrate.sh -> Will run all necessary script to migrate cluster.
+
 ---
 ## Prerequisite
 ### Have the following cli tools installed:
@@ -26,3 +28,10 @@
 
 ---
 ## Steps to migrate provider
+- Clone the github repository
+- Run script using ./migrate.sh
+
+---
+> **Note** Running this script requires 1-2 hours of downtime for cluster.
+
+
