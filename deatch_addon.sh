@@ -8,15 +8,14 @@ usage() {
 
   Requirements:
     1. A ROSA cluster with ODF MS Consumer addon installed.
-    2. kubectl, rosa, ocm and jq installed.
+    2. kubectl, ocm and jq installed.
 
   USAGE: "./deatach_addon.sh <clusterID>"
 
-  To install kubectl, rosa, ocm & jq refer:
+  To install kubectl, ocm & jq refer:
   1. kubectl: ${link[kubectl]}
   2. jq: ${link[jq]}
-  3. rosa: ${link[rosa]}
-  4. ocm: ${link[ocm]}
+  3. ocm: ${link[ocm]}
 
 EOF
 }
@@ -43,8 +42,8 @@ echo -e "\nScaling down the ocs-osd-deployer"
 kubectl scale deployment ocs-osd-controller-manager -n openshift-storage --replicas=0
 
 echo -e "\nUninstalling consumer addon"
-#TODO: unintall from UI or from ROSA command
-rosa uninstall addons -c $1 ocs-consumer -y
+
+ocm delete /api/clusters_mgmt/v1/clusters/$1/addons/ocs-consumer
 
 while true
 do
@@ -62,7 +61,6 @@ done
 echo -e "\nDeleting ocs-osd-deployer-csv"
 kubectl delete csv $(kubectl get csv -n openshift-storage | grep ocs-osd | awk '{print $1}') -n openshift-storage
 
-# we can also try to rosa list adons and then check the status here
 while true
 do
 

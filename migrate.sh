@@ -26,9 +26,9 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
 fi
 
 if [[ "${1}" == "-d" ]]; then
-  validate "kubectl" "curl" "ocm" "rosa" "jq" "yq" "aws"
+  validate "kubectl" "curl" "ocm" "jq" "yq" "aws"
 else
-  validate "ocm-backplane" "kubectl" "curl" "ocm" "rosa" "jq" "yq" "aws"
+  validate "ocm-backplane" "kubectl" "curl" "ocm" "jq" "yq" "aws"
 fi
 
 echo -e "\nEnter the clusterID of backup cluster: "
