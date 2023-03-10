@@ -13,7 +13,6 @@
 - [jq](https://www.cyberithub.com/how-to-install-jq-json-processor-on-rhel-centos-7-8/)
 - [yq](https://www.cyberithub.com/how-to-install-yq-command-line-tool-on-linux-in-5-easy-steps/)
 - [ocm](https://console.redhat.com/openshift/downloads)
-- [rosa](https://console.redhat.com/openshift/downloads)
 - [aws](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 - [ocm-backplane](https://gitlab.cee.redhat.com/service/backplane-cli)
 

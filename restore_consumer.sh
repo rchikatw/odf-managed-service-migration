@@ -12,7 +12,7 @@ usage() {
 
   USAGE: "./restore_consumer.sh <storageProviderEndpoint> <StorageConsumerUID>"
 
-  To install kubectl, rosa, ocm & jq refer:
+  To install kubectl,  ocm & jq refer:
   1. kubectl: ${link[kubectl]}
   2. curl: ${link[curl]}
 
