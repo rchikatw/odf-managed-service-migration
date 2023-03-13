@@ -39,4 +39,8 @@ kill $(lsof -t -i:8081)
 
 kubectl rollout restart deployment ocs-operator -n openshift-storage
 
+echo "Restarting worker nodes on consumer"
+
+kubectl get nodes | grep worker | grep -v infra | awk '{ cmd="oc debug node/"$1" -T -- chroot /host sh -c 'reboot' &"; system(cmd) }' > /dev/null 2>&1
+
 echo "Restore consumer script complted!"
