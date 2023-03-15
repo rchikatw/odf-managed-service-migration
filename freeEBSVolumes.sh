@@ -22,15 +22,13 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
-# Switch to the openshift-storage namespace.
-echo "Switching to the openshift-storage namespace"
-kubectl config set-context --current --namespace=openshift-storage
-
-# Scale the rook-ceph-operator deployment to 0 replicas.
-kubectl scale deployment rook-ceph-operator --replicas 0
+# Scale the rook-ceph-operator, ocs-operator and ocs-provider-server deployment to 0 replicas.
+kubectl scale deployment rook-ceph-operator -n openshift-storage --replicas 0
+kubectl scale deployment ocs-provider-server -n openshift-storage --replicas 0
+kubectl scale deployment ocs-operator -n openshift-storage --replicas 0
 
 # Scale all deployments with the "rook-ceph-mon" label to 0 replicas.
-kubectl scale deployment --replicas 0 --selector=app=rook-ceph-mon
+kubectl scale deployment --replicas 0 -n openshift-storage --selector=app=rook-ceph-mon
 
 # Scale all deployments with the "rook-ceph-osd" label to 0 replicas.
-kubectl scale deployment --replicas 0 --selector=app=rook-ceph-osd
+kubectl scale deployment --replicas 0 -n openshift-storage --selector=app=rook-ceph-osd

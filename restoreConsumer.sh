@@ -10,7 +10,7 @@ usage() {
     1. A ROSA cluster with ODF in external mode.
     2. kubectl & curl installed.
 
-  USAGE: "./restore_consumer.sh <storageProviderEndpoint> <StorageConsumerUID>"
+  USAGE: "./restoreConsumer.sh <storageProviderEndpoint> <StorageConsumerUID>"
 
   To install kubectl,  ocm & jq refer:
   1. kubectl: ${link[kubectl]}
@@ -25,6 +25,8 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
 fi
 
 kubectl patch storagecluster ocs-storagecluster -n openshift-storage -p '{"spec": {"externalStorage": {"storageProviderEndpoint": "'${1}'"}}}' --type merge
+
+# kubectl patch storagecluster ocs-storagecluter --subresource=status --type='merge' -p '{"status":{"externalStorage":{“id”:”<new-id>”}}}'
 
 kill $(lsof -t -i:8081)
 kubectl proxy --port=8081 &
