@@ -10,7 +10,7 @@ usage() {
     1. kubectl, ocm installed.
     2. clusterID for the cluster
 
-  USAGE: "./backup_resources.sh <incluster|s3>"
+  USAGE: "./backupResources.sh <incluster|s3>"
 
   To install kubectl & ocm refer:
   1. kubectl: ${link[kubectl]}
@@ -29,7 +29,7 @@ echo -e "Creating required directories for backup"
 rm -rf backup
 mkdir backup
 cd backup
-mkdir -p {deployments,persistentvolumes,persistentvolumeclaims,secrets,storageconsumers}
+mkdir -p {deployments,persistentvolumes,persistentvolumeclaims,secrets,storageconsumers,storageclassclaims,cephclients}
 cd ..
 
 case "$1" in
@@ -52,9 +52,17 @@ case "$1" in
     cd ../secrets
     kubectl get secret -n openshift-storage | grep 'rook-ceph-mon\|rook-ceph-mons-keyring\|rook-ceph-admin-keyring' | awk '{ cmd="kubectl get secret "$1" -n openshift-storage -o json > " $1".json"; system(cmd) }'
 
-    echo -e "Backing up consumers"
+    echo -e "Backing up storageConsumers"
     cd ../storageconsumers
     kubectl get storageconsumers -n openshift-storage | awk 'NR!=1 {print}' | awk '{ cmd="kubectl get storageconsumers "$1" -n openshift-storage -o json > " $1".json"; system(cmd) }'
+
+    echo -e "Backing up storageClassClaim"
+    cd ../storageclassclaims
+    kubectl get storageclassclaim -n openshift-storage -ojson > storageclassclaims.json
+
+    echo -e "Backing up cephClient"
+    cd ../cephclients
+    kubectl get cephclient -n openshift-storage -ojson > cephclients.json
     ;;
   s3)
     echo "Enter s3 URL"
@@ -71,6 +79,7 @@ case "$1" in
     tar -xf s3backup.tar
     cd ..
 
+    #TODO: backup cephclient
     echo "Formatting s3 backup"
     cp s3backup/resources/deployments.apps/namespaces/openshift-storage/rook-ceph-mon-* s3backup/resources/deployments.apps/namespaces/openshift-storage/rook-ceph-osd-* backup/deployments
 
@@ -82,7 +91,9 @@ case "$1" in
 
     cp s3backup/resources/storageconsumers.ocs.openshift.io/namespaces/openshift-storage/* backup/storageconsumers
 
-    rm -rf s3backup
+    cp s3backup/resources/storageclassclaims.ocs.openshift.io/namespaces/openshift-storage/* backup/storageclassclaims
+
+    cp s3backup/resources/cephclients.ceph.rook.io/namespaces/openshift-storage/* backup/cephclients
     ;;
   *)
     echo "Invalid Option, exiting..."

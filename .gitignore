@@ -1,6 +1,12 @@
 backup/
+backup_consumer/
 kubeconfig/
 rook-ceph-mon-*
 s3backup/
 s3backup.tar
 *.log
+
+sample-applications/
+create-sample*
+dataOps.sh
+scaleApps*

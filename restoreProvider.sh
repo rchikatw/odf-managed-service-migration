@@ -11,7 +11,7 @@ usage() {
     2. Backup of resources from the old cluster.
     3. kubectl, yq and jq installed.
 
-  USAGE: "./restore_provider.sh"
+  USAGE: "./restoreProvider.sh"
 
   Please note that we need to provide the absolute path to kubeconfig and s3 URL in ' '
 
@@ -34,6 +34,40 @@ unset mons
 declare -A workerNodeNames
 declare -A workerIps
 declare -A mons
+
+validateClusterRequirement() {
+
+  # Check if the openshift-storage namespace exists
+  echo "Checking if the namespace openshift-storage exist"
+  if kubectl get namespaces openshift-storage &> /dev/null; then
+    echo "Namespace exists!"
+  else
+    echo "Namespace does not exist! Exiting.."
+    cleanup
+    exit
+  fi
+
+  echo "Switching to the openshift-storage namespace"
+  kubectl config set-context --current --namespace=openshift-storage
+
+  # Check if the cluster is a provider cluster
+  echo "Checking if it's a provider cluster"
+  if kubectl get deployments ocs-osd-controller-manager &> /dev/null; then
+    addOn=$(kubectl get deployments ocs-osd-controller-manager -o json | jq -r '.spec .template .spec .containers[] .env[0]|select(. | .name == "ADDON_NAME") .value')
+    if [[ $addOn == *"provider"* ]]; then
+      echo "It is a provider cluster!"
+    else
+      echo "Not a provider cluster! Exiting.."
+      cleanup
+      exit
+    fi
+  else
+    echo "ocs-osd-controller-manager deployment not found! Exiting.."
+    cleanup
+    exit
+  fi
+
+}
 
 checkDeployerCSV() {
   echo -e "\nWaiting for ocs-osd-deployer to come in Succeeded phase"
@@ -117,9 +151,28 @@ applySecrets() {
 
 }
 
+prepareData() {
+
+  echo -e "\nPreparing data"
+  echo -e "\nMapping monName to nodeName and nodeIP"
+  for nodeNumber in {1..3};
+  do
+    pvName=$(kubectl get pvc | grep rook-ceph-mon | awk -v nodeNumber=$nodeNumber '{ awkArray[NR] = $3} END { print awkArray[nodeNumber];}')
+    pvZone=$(kubectl get pv $pvName -ojson | jq '.metadata .labels ."topology.kubernetes.io/zone"' | sed "s/\"//g")
+    monName=$(kubectl get pv $pvName -ojson | jq '.spec .claimRef .name'   | sed "s/\"//g" | cut -d'-' -f 4)
+    mons[$nodeNumber]=$monName
+
+    nodeName=$(kubectl get nodes -owide --selector=topology.kubernetes.io/zone=$pvZone | grep worker | grep -v infra | awk '{print $1; exit}')
+    nodeIP=$(kubectl get nodes -owide --selector=topology.kubernetes.io/zone=$pvZone | grep worker | grep -v infra | awk '{print $6; exit}')
+    workerNodeNames[$monName]=$nodeName
+    workerIps[$monName]=$nodeIP
+  done
+
+}
+
 applyMonDeploymens() {
 
-  echo "Apply the mon deployments from backup"
+  echo -e "\nApply the mon deployments from backup"
   deployments=`ls  $backupDirectoryName/deployments/rook-ceph-mon*`
   for entry in $deployments
   do
@@ -136,7 +189,7 @@ applyMonDeploymens() {
 
 injectMonMap() {
 
-  echo "Inject monmap for mons"
+  echo -e "\nInject monmap for mons"
   ROOK_CEPH_MON_HOST=$(kubectl get secrets rook-ceph-config -o json | jq -r '.data .mon_host' | base64 -d)
   ROOK_CEPH_MON_INITIAL_MEMBERS=$(kubectl get secrets rook-ceph-config -o json | jq -r '.data .mon_initial_members' | base64 -d)
 
@@ -266,69 +319,83 @@ applyOsds() {
 applyStorageConsumers() {
 
   # Get the names of all the storage consumer files in the backup directory and apply them
-  echo -e "\nApplying Storage consumer CR"
+  echo -e "\nApplying Storage consumers"
   consumers=`ls  $backupDirectoryName/storageconsumers`
   for entry in $consumers
   do
     echo "applying Consumer with name: "$entry
     kubectl apply -f $backupDirectoryName/storageconsumers/$entry
+    sleep 5
+
+    status=$(jq '.status' $backupDirectoryName/storageconsumers/$entry)
+    cosnumer=${entry[0]%%.*}
+    kubectl patch --subresource=status storageconsumer ${cosnumer} --type=merge --patch "{\"status\": ${status} }"
   done
 
 }
 
-validateClusterRequirement() {
+applyStorageClassClaim() {
 
-  # Check if the openshift-storage namespace exists
-  echo "Checking if the namespace openshift-storage exist"
-  if kubectl get namespaces openshift-storage &> /dev/null; then
-    echo "Namespace exists!"
-  else
-    echo "Namespace does not exist! Exiting.."
-    cleanup
-    exit
-  fi
-
-  echo "Switching to the openshift-storage namespace"
-  kubectl config set-context --current --namespace=openshift-storage
-
-  # Check if the cluster is a provider cluster
-  echo "Checking if it's a provider cluster"
-  if kubectl get deployments ocs-osd-controller-manager &> /dev/null; then
-    addOn=$(kubectl get deployments ocs-osd-controller-manager -o json | jq -r '.spec .template .spec .containers[] .env[0]|select(. | .name == "ADDON_NAME") .value')
-    if [[ $addOn == *"provider"* ]]; then
-      echo "It is a provider cluster!"
-    else
-      echo "Not a provider cluster! Exiting.."
-      cleanup
-      exit
-    fi
-  else
-    echo "ocs-osd-controller-manager deployment not found! Exiting.."
-    cleanup
-    exit
-  fi
-
-}
-
-prepareData() {
-
-  echo -e "\nPreparing data"
-  echo -e "\nMapping monName to nodeName and nodeIP"
-  for nodeNumber in {1..3};
+  echo -e "\nApplying StorageClassClaims"
+  storageConsumers=( $(kubectl get storageConsumers -n openshift-storage --no-headers | awk '{print $1}') )
+  for storageConsumer in ${storageConsumers[@]}
   do
-    pvName=$(kubectl get pvc | grep rook-ceph-mon | awk -v nodeNumber=$nodeNumber '{ awkArray[NR] = $3} END { print awkArray[nodeNumber];}')
-    pvZone=$(kubectl get pv $pvName -ojson | jq '.metadata .labels ."topology.kubernetes.io/zone"' | sed "s/\"//g")
-    monName=$(kubectl get pv $pvName -ojson | jq '.spec .claimRef .name'   | sed "s/\"//g" | cut -d'-' -f 4)
-    mons[$nodeNumber]=$monName
-
-    nodeName=$(kubectl get nodes -owide --selector=topology.kubernetes.io/zone=$pvZone | grep worker | grep -v infra | awk '{print $1; exit}')
-    nodeIP=$(kubectl get nodes -owide --selector=topology.kubernetes.io/zone=$pvZone | grep worker | grep -v infra | awk '{print $6; exit}')
-    workerNodeNames[$monName]=$nodeName
-    workerIps[$monName]=$nodeIP
+    newUID=$(kubectl get storageconsumer ${storageConsumer} -n openshift-storage -ojson | jq -r '.metadata .uid')
+    oldUID=$(jq -r '.metadata .uid' $backupDirectoryName/storageconsumers/${storageConsumer}.json)
+    sed -i 's/'${oldUID}'/'${newUID}'/g' $backupDirectoryName/storageclassclaims/storageclassclaims.json
+    sed -i 's/'${oldUID}'/'${newUID}'/g' $backupDirectoryName/cephclients/cephclients.json
   done
 
+  # updated the name to new md5 sum of UID+claimName
+  # https://github.com/red-hat-storage/ocs-operator/blob/208b1824cae9b5e0c8288ddddb5b780a3fdf546d/services/provider/server/storageclaim.go#L56-L127
+
+  count=`jq '.items | length' $backupDirectoryName/storageclassclaims/storageclassclaims.json`
+  for ((i=0; i<$count; i++)); do
+    consumerClaimName=`jq -r '.items['$i'] .metadata .labels ."ocs.openshift.io/storageclassclaim-name"' $backupDirectoryName/storageclassclaims/storageclassclaims.json`
+    uid=`jq -r '.items['$i'] .metadata .labels ."ocs.openshift.io/storageconsumer-uuid"' $backupDirectoryName/storageclassclaims/storageclassclaims.json`
+
+    json=$(echo {\"storageConsumerUUID\":\"$uid\"\,\"storageClassClaimName\":\"$consumerClaimName\"})
+    generatedName=$(echo -n $json | md5sum | awk '{print $1}')
+    newClaimName="storageclassclaim-"$generatedName
+    oldClaimName=`jq -r '.items['$i'] .metadata .name' $backupDirectoryName/storageclassclaims/storageclassclaims.json`
+
+    sed -i 's/'${oldClaimName}'/'${newClaimName}'/g' $backupDirectoryName/storageclassclaims/storageclassclaims.json
+    sed -i 's/'${oldClaimName}'/'${newClaimName}'/g' $backupDirectoryName/cephclients/cephclients.json
+  done
+
+  kubectl apply -f $backupDirectoryName/storageclassclaims/storageclassclaims.json
+  sleep 5
+
+  storageClassClaims=( $(kubectl get storageClassClaims -n openshift-storage --no-headers | awk '{print $1}') )
+  for storageClassClaim in ${storageClassClaims[@]}
+  do
+    status=$(jq '.items[] | select(.metadata .name == "'${storageClassClaim}'") | .status' $backupDirectoryName/storageclassclaims/storageclassclaims.json)
+    kubectl patch --subresource=status storageclassclaim ${storageClassClaim} -n openshift-storage --type=merge --patch "{\"status\": ${status} }"
+  done
 }
 
+applyCephClients() {
+
+  echo "Applying CephClients"
+
+  storageClassClaims=( $(kubectl get storageClassClaims -n openshift-storage --no-headers | awk '{print $1}') )
+  for storageClassClaim in ${storageClassClaims[@]}
+  do
+    oldUID=`jq -r --arg scc $storageClassClaim '.items[] .metadata .ownerReferences[0] | select( .name==$scc) | .uid' $backupDirectoryName/cephclients/cephclients.json | awk '{print $1; exit}'`
+    newUID=`kubectl get storageclassclaim $storageClassClaim -n openshift-storage -ojson | jq -r '.metadata .uid'`
+    sed -i 's/'${oldUID}'/'${newUID}'/g' $backupDirectoryName/cephclients/cephclients.json
+  done
+
+  kubectl apply -f $backupDirectoryName/cephclients/cephclients.json
+  sleep 5
+
+  cephclients=( $(kubectl get cephclient -n openshift-storage --no-headers | awk '{print $1}') )
+  for cephclient in ${cephclients[@]}
+  do
+    status=$(jq '.items[] | select(.metadata .name == "'${cephclient}'") | .status' $backupDirectoryName/cephclients/cephclients.json)
+    kubectl patch --subresource=status cephclient ${cephclient} -n openshift-storage --type=merge --patch "{\"status\": ${status} }"
+  done
+}
 
 backupDirectoryName=backup
 
@@ -367,16 +434,19 @@ checkDeployerCSV
 echo -e "\nRestart the rook ceph tools pod"
 kubectl rollout restart deployment rook-ceph-tools
 
+# scale down ocs
+kubectl scale deployment ocs-operator --replicas 0
+kubectl scale deployment ocs-provider-server --replicas 0
+
 applyStorageConsumers
 
-version=$(kubectl get csv $(kubectl get csv -n openshift-storage | grep odf-operator | awk '{print $1; exit}') -n openshift-storage -ojson | jq -r '.spec .version')
-# patching the storageCluster to add the necessary fields to migrate to odf 4.12
-if [[ ${version:0:4} == "4.12" ]]; then
-  kubectl patch storagecluster ocs-storagecluster -p '{"spec":{ "defaultStorageProfile":"default", "storageProfiles": [{"deviceClass":"ssd","name":"default"}] }}' --type=merge
-fi
+applyStorageClassClaim
 
-echo -e "\nRestart the ocs provider server pod"
-kubectl rollout restart deployment ocs-provider-server
+applyCephClients
+
+# scale up ocs
+kubectl scale deployment ocs-operator --replicas 1
+kubectl scale deployment ocs-provider-server --replicas 1
 
 # Get the storage provider endpoint from the Kubernetes API and print it
 storageProviderEndpoint=$(kubectl get StorageCluster ocs-storagecluster -o json | jq -r '.status .storageProviderEndpoint')

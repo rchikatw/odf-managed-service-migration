@@ -10,7 +10,7 @@ usage() {
     1. A ROSA cluster with ODF MS Consumer addon installed.
     2. kubectl, ocm and jq installed.
 
-  USAGE: "./deatach_addon.sh <clusterID>"
+  USAGE: "./deatachConsumerAddon.sh <clusterID>"
 
   To install kubectl, ocm & jq refer:
   1. kubectl: ${link[kubectl]}
