@@ -20,28 +20,29 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
-backupConsumerResources() {
+backupVolumes() {
+  data=$(kubectl get pv | grep ${1} | awk '{print $6}')
+  namespace="${data%%/*}"
+  name="${data#*/}"
+  kubectl get pv ${1} -oyaml > $backupDirectoryName/pv/$2/$1.yaml
+  kubectl get pvc ${name} -n ${namespace} -oyaml > $backupDirectoryName/pvc/$2/$name.yaml
+}
 
+backupConsumerResources() {
   #pvc and pv backup
   for pvName in "${rbdPVNames[@]}"
   do
     # echo $pvName
-    data=$(kubectl get pv | grep ${pvName} | awk '{print $6}')
-    namespace="${data%%/*}"
-    name="${data#*/}"
-    kubectl get pv ${pvName} -oyaml > $backupDirectoryName/pv/rbd/$pvName.yaml
-    kubectl get pvc ${name} -n ${namespace} -oyaml > $backupDirectoryName/pvc/rbd/$name.yaml
+    backupVolumes "$pvName" "rbd" &
   done
 
   for pvName in "${fsPVNames[@]}"
   do
     # echo $pvName
-    data=$(kubectl get pv | grep ${pvName} | awk '{print $6}')
-    namespace="${data%%/*}"
-    name="${data#*/}"
-    kubectl get pv ${pvName} -oyaml > $backupDirectoryName/pv/cephfs/$pvName.yaml
-    kubectl get pvc ${name} -n ${namespace} -oyaml > $backupDirectoryName/pvc/cephfs/$name.yaml
+    backupVolumes "$pvName" "cephfs" &
   done
+
+  sleep 2
 
   #storageCluster backup
   kubectl get storagecluster -n openshift-storage -oyaml > $backupDirectoryName/storagecluster.yaml
@@ -57,21 +58,24 @@ releasePV() {
   do
     kubectl patch pv ${pvName} --type=merge -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'
 
-    data=$(kubectl get pv | grep ${pvName} | awk '{print $6}')
+    data=$(kubectl get pv ${pvName} --no-headers | awk '{print $6}')
     namespace="${data%%/*}"
     name="${data#*/}"
     kubectl delete pvc $name -n ${namespace}
+  done
 
+  for pvName in "${pvFilenames[@]}";
+  do
     while true
     do
-      pvStatus=$(kubectl get pv | grep ${pvName} | awk '{print $5;exit}')
+      pvStatus=$(kubectl get pv ${pvName} --no-headers | awk '{print $5;exit}')
       if [[ $pvStatus == *"Released"* ]]
       then
           kubectl delete pv ${pvName}
           break
       fi
       echo "waiting for PV "$pvName" to go in released state, current state is "$pvStatus
-      sleep 2
+      sleep 5
     done
   done
 }

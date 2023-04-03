@@ -50,30 +50,13 @@ validateClusterRequirement() {
   echo "Switching to the openshift-storage namespace"
   kubectl config set-context --current --namespace=openshift-storage
 
-  # Check if the cluster is a provider cluster
-  echo "Checking if it's a provider cluster"
-  if kubectl get deployments ocs-osd-controller-manager &> /dev/null; then
-    addOn=$(kubectl get deployments ocs-osd-controller-manager -o json | jq -r '.spec .template .spec .containers[] .env[0]|select(. | .name == "ADDON_NAME") .value')
-    if [[ $addOn == *"provider"* ]]; then
-      echo "It is a provider cluster!"
-    else
-      echo "Not a provider cluster! Exiting.."
-      cleanup
-      exit
-    fi
-  else
-    echo "ocs-osd-controller-manager deployment not found! Exiting.."
-    cleanup
-    exit
-  fi
-
 }
 
 checkDeployerCSV() {
-  echo -e "\nWaiting for ocs-osd-deployer to come in Succeeded phase"
+  echo -e "\nWaiting for managed-fusion to come in Succeeded phase"
   while true
   do
-    csvStatus=$(kubectl get csv | grep ocs-osd-deployer | awk '{ print $7; exit }')
+    csvStatus=$(kubectl get csv | grep managed-fusion | awk '{ print $6; exit }')
     echo "csvStatus is "$csvStatus
     if [[ $csvStatus == *"Succeeded"* ]]
     then

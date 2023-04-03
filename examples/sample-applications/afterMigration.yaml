@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: sample-app-fsAM
+  name: sample-app-fsam
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx-app-fs
-  namespace: sample-app-fsAM
+  namespace: sample-app-fsam
 spec:
   replicas: 1
   selector:
@@ -29,13 +29,13 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: my-pvc-fsAM
+          claimName: my-pvc-fsam
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: my-pvc-fsAM
-  namespace: sample-app-fsAM
+  name: my-pvc-fsam
+  namespace: sample-app-fsam
 spec:
   storageClassName: ocs-storagecluster-cephfs
   accessModes:
@@ -47,13 +47,13 @@ spec:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: sample-app-rbdM
+  name: sample-app-rbdam
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: nginx-app-rbd
-  namespace: sample-app-rbdM
+  namespace: sample-app-rbdam
 spec:
   replicas: 1
   selector:
@@ -75,13 +75,13 @@ spec:
       volumes:
       - name: data
         persistentVolumeClaim:
-          claimName: my-pvc-rbdM
+          claimName: my-pvc-rbdam
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: my-pvc-rbdM
-  namespace: sample-app-rbdM
+  name: my-pvc-rbdam
+  namespace: sample-app-rbdam
 spec:
   storageClassName: ocs-storagecluster-ceph-rbd
   accessModes:

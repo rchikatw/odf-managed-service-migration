@@ -19,15 +19,14 @@ do
 
   echo $i
 
-  sed -i 's/fs1/fs'${i}'/g' sample-applications/cephfs.yaml
-  sed -i 's/rbd1/rbd'${i}'/g' sample-applications/cephrbd.yaml
+  sed -i 's/fs1/fs'${i}'/g' examples/sample-applications/cephfs.yaml
+  sed -i 's/rbd1/rbd'${i}'/g' examples/sample-applications/cephrbd.yaml
 
-  kubectl apply -f sample-applications/cephfs.yaml
-  kubectl apply -f sample-applications/cephrbd.yaml
-  sleep 5
+  kubectl apply -f examples/sample-applications/cephfs.yaml
+  kubectl apply -f examples/sample-applications/cephrbd.yaml
 
-  sed -i 's/fs'${i}'/fs1/g' sample-applications/cephfs.yaml
-  sed -i 's/rbd'${i}'/rbd1/g' sample-applications/cephrbd.yaml
+  sed -i 's/fs'${i}'/fs1/g' examples/sample-applications/cephfs.yaml
+  sed -i 's/rbd'${i}'/rbd1/g' examples/sample-applications/cephrbd.yaml
 
 done
 
