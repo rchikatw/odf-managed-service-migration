@@ -26,13 +26,13 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
-echo "Reading volume IDs from backup"
+echo -e "${Green}\nEBS volume update tags started"
 
 pvFilenames=`ls  backup/persistentvolumes/`
 for pv in $pvFilenames
 do
-volumeID=$(cat backup/persistentvolumes/$pv | jq -r '.spec .awsElasticBlockStore .volumeID |  split("/") | .[-1]')
-  echo -e "Updating tags for volume Id "$volumeID
+  volumeID=$(cat backup/persistentvolumes/$pv | jq -r '.spec .awsElasticBlockStore .volumeID |  split("/") | .[-1]')
+  echo -e "${Cyan}Updating tags for volume Id "$volumeID
   region=$(cat backup/persistentvolumes/$pv | jq -r '.metadata .labels ."topology.kubernetes.io/region"')
   keyName=$(aws ec2 describe-volumes --volume-id $volumeID --filters Name=tag:kubernetes.io/created-for/pvc/namespace,Values=openshift-storage  --region $region --query "Volumes[*].Tags" | jq .[] | jq -r '.[]| select (.Value == "owned")|.Key')
   backupKeyName=${keyName##*/}
@@ -46,5 +46,7 @@ volumeID=$(cat backup/persistentvolumes/$pv | jq -r '.spec .awsElasticBlockStore
   restoreKeyName=${keyName##*/}
   restoreValue=${nameValue/$backupKeyName/$restoreKeyName}
   aws ec2 create-tags --tags Key=Name,Value=$restoreValue --resources $volumeID --region $region
-  echo -e "Updated tags for volume Id "$volumeID
+  echo -e "${Cyan}Updated tags for volume Id "$volumeID
 done
+
+echo -e "${Green}\nFinished updating EBS volume tags"

@@ -36,12 +36,12 @@ else
   validate "ocm-backplane" "kubectl" "curl" "ocm" "jq" "yq" "aws"
 fi
 
-echo -e "\nEnter the clusterID of backup cluster: "
+echo -e "\n{Cyan}Enter the clusterID of backup cluster: "
 read backupClusterID
 
 loginCluster $1 "$backupClusterID"
 
-echo -e "\nValidating if all consumer clusters are above OCP 4.11 and the pods using the PVC are scaled down"
+echo -e "\n{Cyan}Validating if all consumer clusters are above OCP 4.11 and the pods using the PVC are scaled down"
 consumers=( $(kubectl get storageconsumer -n openshift-storage --no-headers | awk '{print $1}') )
 for consumer in $consumers
 do
@@ -50,7 +50,7 @@ do
 
   version=$(kubectl get clusterversion version -oyaml | yq '.status .desired .version')
   if [[ "$version" < "4.11" ]]; then
-  echo "Error: Please update the consumer cluster "$consumerClusterID" to >=4.11.z"
+  echo "${Red}Error: Please update the consumer cluster "$consumerClusterID" to >=4.11.z"
   exit 1
   fi
 
@@ -61,33 +61,33 @@ do
     boundPVs[${#boundPVs[@]}]=${volumeAttachment}
   done
   if [[ "${#boundPVs[@]}" > "0" ]]; then
-    echo -e "\nThere are still PVC which are using by pods please scale down the application pod and re-run the script\n"
-    echo -e "\nStrorage Consumer name"$consumerClusterID
+    echo -e "\n{Red}There are still PVC which are using by pods please scale down the application pod and re-run the script\n"
+    echo -e "\n{Red}Strorage Consumer name"$consumerClusterID
     printf "%s\n" "${boundPVs[@]}"
     exit
   fi
 done
 
-echo "Validation Complete!"
+echo "{Green}Validation of consumer's Completed!"
 
 loginCluster $1 "$backupClusterID"
 
-echo -e "\nTaking a backup of resouces required for backup"
+echo -e "\n{Cyan}Taking a backup of resouces required for backup"
 sh ./backupResources.sh
 echo "Backup Complete!"
 
-echo -e "\nScaling down the rook-ceph pods connected to the EBS Volumes"
+echo -e "\n{Cyan}Scaling down the rook-ceph pods connected to the EBS Volumes"
 sh ./freeEBSVolumes.sh
-echo "Scaling down Complete!"
+echo -e "\n{Green}Scaling down Complete!"
 
-echo -e "\nEnter the clusterID of the new cluster:"
+echo -e "\n{Cyan}Enter the clusterID of the new cluster:"
 read restoreClusterID
 
 loginCluster $1 "$restoreClusterID"
 
-echo -e "\nMigrating to the new Provider"
+echo -e "\n{Green}Migrating to the new Provider Started"
 sh ./restoreProvider.sh
-echo "Migration of Provider Complete!"
+echo -e "\n{Green}Migration of Provider Completed!"
 
 unset storageConsumerUID
 declare -A storageConsumerUID
@@ -117,3 +117,5 @@ loginCluster $1 "$restoreClusterID"
 sh ./updateEBSVolumeTags.sh
 
 cleanup
+
+echo -e "\n{Green}Cluster migrated successfully!, Scale up the deployments and verify the data."

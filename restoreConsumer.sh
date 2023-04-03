@@ -41,4 +41,4 @@ kill $(lsof -t -i:8081)
 
 kubectl rollout restart deployment ocs-operator -n openshift-storage
 
-echo "Restore consumer script complted!"
+echo -e "${Green}\nRestore consumer script complted!"

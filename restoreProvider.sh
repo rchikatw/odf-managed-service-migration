@@ -13,8 +13,6 @@ usage() {
 
   USAGE: "./restoreProvider.sh"
 
-  Please note that we need to provide the absolute path to kubeconfig and s3 URL in ' '
-
   To install kubectl, jq or yq Refer:
     1. kubectl: ${link[kubectl]}
     2. yq: ${link[yq]}
@@ -38,16 +36,16 @@ declare -A mons
 validateClusterRequirement() {
 
   # Check if the openshift-storage namespace exists
-  echo "Checking if the namespace openshift-storage exist"
+  echo -e "${Green}\nChecking if the namespace openshift-storage exist"
   if kubectl get namespaces openshift-storage &> /dev/null; then
-    echo "Namespace exists!"
+    echo -e "${Cyan}\nNamespace exists!"
   else
-    echo "Namespace does not exist! Exiting.."
+    echo "${Red}Namespace does not exist! Exiting.."
     cleanup
     exit
   fi
 
-  echo "Switching to the openshift-storage namespace"
+  echo -e "${Cyan}\nSwitching to the openshift-storage namespace"
   kubectl config set-context --current --namespace=openshift-storage
 
 }
@@ -92,7 +90,7 @@ deleteResources() {
 applyPersistentVolumes() {
 
   # Apply the PV objects from the backup cluster
-  echo -e "\nApplying the PVs from backup cluster "
+  echo -e "\n{Cyan}Applying the PVs from backup cluster "
   pvFilenames=`ls  $backupDirectoryName/persistentvolumes/`
   for pv in $pvFilenames
   do
@@ -109,7 +107,7 @@ applyPersistentVolumes() {
 applyPersistentVolumeClaims() {
 
   # Apply the PVC objects from the backup cluster
-  echo -e "\nApplying PVC's for osd's and mon's"
+  echo -e "\n{Cyan}Applying PVC's for osd's and mon's"
   pvcFilenames=`ls  $backupDirectoryName/persistentvolumeclaims/*{default,rook-ceph-mon}*`
   for pvc in $pvcFilenames
   do
@@ -123,7 +121,7 @@ applyPersistentVolumeClaims() {
 applySecrets() {
 
   # Apply the secrets
-  echo -e "\nApplying required secrets for rook-ceph"
+  echo -e "\n{Cyan}Applying required secrets for rook-ceph"
   secretFilenames=`ls  $backupDirectoryName/secrets/*{rook-ceph-mon.json,rook-ceph-mons-keyring,rook-ceph-admin-keyring}*`
   for secret in $secretFilenames
   do
@@ -136,8 +134,7 @@ applySecrets() {
 
 prepareData() {
 
-  echo -e "\nPreparing data"
-  echo -e "\nMapping monName to nodeName and nodeIP"
+  echo -e "\n{Cyan}Preparing data, Mapping monName to nodeName and nodeIP"
   for nodeNumber in {1..3};
   do
     pvName=$(kubectl get pvc | grep rook-ceph-mon | awk -v nodeNumber=$nodeNumber '{ awkArray[NR] = $3} END { print awkArray[nodeNumber];}')
@@ -155,7 +152,7 @@ prepareData() {
 
 applyMonDeploymens() {
 
-  echo -e "\nApply the mon deployments from backup"
+  echo -e "\n{Cyan}Apply the mon deployments from backup"
   deployments=`ls  $backupDirectoryName/deployments/rook-ceph-mon*`
   for entry in $deployments
   do
@@ -172,7 +169,7 @@ applyMonDeploymens() {
 
 injectMonMap() {
 
-  echo -e "\nInject monmap for mons"
+  echo -e "\n{Cyan}Inject monmap for mons"
   ROOK_CEPH_MON_HOST=$(kubectl get secrets rook-ceph-config -o json | jq -r '.data .mon_host' | base64 -d)
   ROOK_CEPH_MON_INITIAL_MEMBERS=$(kubectl get secrets rook-ceph-config -o json | jq -r '.data .mon_initial_members' | base64 -d)
 
@@ -191,7 +188,7 @@ injectMonMap() {
     cat <<< $(jq 'del(.spec .template  .spec .containers[0] .args[]|select(. | contains("--public-addr")))' ${mon}.json) > ${mon}.json
     cat <<< $(jq --arg publicIp $publicIp '.spec .template  .spec .containers[0] .args +=[$publicIp]' ${mon}.json ) > ${mon}.json
 
-    echo -e "\nWaiting for mon "$monName" pod to come in crashbackloop status"
+    echo -e "\n{Cyan}Waiting for mon "$monName" pod to come in crashbackloop status"
     while true
     do
       podStatus=$(kubectl get pods | grep $mon | awk '{ print $3; exit }')
@@ -203,7 +200,7 @@ injectMonMap() {
       sleep 2
     done
 
-    echo -e "\nApplying Sleep, Initial delay to mon pod so that it won't restart during injecting monmap"
+    echo -e "\n{Cyan}Applying Sleep, Initial delay to mon pod so that it won't restart during injecting monmap"
     kubectl patch deployment $mon -p '{"spec": {"template": {"spec": {"containers": [{"name": "mon", "livenessProbe": { "initialDelaySeconds": 20, "timeoutSeconds": 60} , "command": ["sleep", "infinity"], "args": [] }]}}}}'
 
     sleep 10
@@ -220,7 +217,7 @@ injectMonMap() {
     echo "extractMonmap: "${extractMonmap}
     echo "injectMonmap: "${injectMonmap}
 
-    echo -e "\nWaiting for mon "$monName" pod to come in Running status"
+    echo -e "\n{Cyan}Waiting for mon "$monName" pod to come in Running status"
     while true
     do
       podStatus=$(kubectl get pods | grep $mon | awk '{ print $3; exit }')
@@ -237,7 +234,7 @@ injectMonMap() {
 
     sleep 5
 
-    echo -e "\napplying rook ceph mon deployment"
+    echo -e "\n{Cyan}applying rook ceph mon deployment"
     kubectl replace --force -f $mon.json
   done
 
@@ -246,7 +243,7 @@ injectMonMap() {
 updateConfigMap() {
 
   # ConfigMap
-  echo -e "\nUpdating configmap to new Data & mapping"
+  echo -e "\n{Cyan}Updating configmap to new Data & mapping"
   kubectl get configmaps rook-ceph-mon-endpoints -o yaml > rook-ceph-mon-endpoints.yaml
 
   data=""
@@ -268,14 +265,14 @@ updateConfigMap() {
 
 checkMonStatus() {
   # Wait for all the mons to come up
-  echo -e "\nWaiting for all the mon's pod to come in Running status and expected mon container count to be available"
+  echo -e "\n{Cyan}Waiting for all the mon's pod to come in Running status and expected mon container count to be available"
   for mon in "${mons[@]}";
   do
     while true
     do
       podStatus=$(kubectl get pods | grep rook-ceph-mon-${mon} | awk '{ print $3; exit }')
       containerCount=$(kubectl get pods | grep rook-ceph-mon-${mon} | awk '{ print $2; exit }')
-      echo "for mon "${mon}" podStatus is "$podStatus" containerCount is "$containerCount
+      echo -e "\n{Cyan}for mon "${mon}" podStatus is "$podStatus" containerCount is "$containerCount
       if [[ $podStatus == *"Running"* && $containerCount == "2/2" ]]
       then
           break
@@ -288,7 +285,7 @@ checkMonStatus() {
 applyOsds() {
 
   # Iterate over the OSD deployment files
-  echo -e "\nApplying the deployments for osds"
+  echo -e "\n{Cyan}Applying the deployments for osds"
   deploymentsOsds=`ls  $backupDirectoryName/deployments/rook-ceph-osd-*`
   for entry in $deploymentsOsds
   do
@@ -302,11 +299,11 @@ applyOsds() {
 applyStorageConsumers() {
 
   # Get the names of all the storage consumer files in the backup directory and apply them
-  echo -e "\nApplying Storage consumers"
+  echo -e "\n{Cyan}Applying Storage consumers"
   consumers=`ls  $backupDirectoryName/storageconsumers`
   for entry in $consumers
   do
-    echo "applying Consumer with name: "$entry
+    echo "{Cyan}applying Consumer with name: "$entry
     kubectl apply -f $backupDirectoryName/storageconsumers/$entry
     sleep 5
 
@@ -319,7 +316,7 @@ applyStorageConsumers() {
 
 applyStorageClassClaim() {
 
-  echo -e "\nApplying StorageClassClaims"
+  echo -e "\n{Cyan}Applying StorageClassClaims"
   storageConsumers=( $(kubectl get storageConsumers -n openshift-storage --no-headers | awk '{print $1}') )
   for storageConsumer in ${storageConsumers[@]}
   do
@@ -359,7 +356,7 @@ applyStorageClassClaim() {
 
 applyCephClients() {
 
-  echo "Applying CephClients"
+  echo "{Cyan}Applying CephClients"
 
   storageClassClaims=( $(kubectl get storageClassClaims -n openshift-storage --no-headers | awk '{print $1}') )
   for storageClassClaim in ${storageClassClaims[@]}
@@ -408,13 +405,13 @@ checkMonStatus
 
 applyOsds
 
-echo -e "\nScaling up the rook ceph operator"
+echo -e "\n{Cyan}Scaling up the rook ceph operator"
 kubectl scale deployment rook-ceph-operator --replicas 1
 
 sleep 60
 checkDeployerCSV
 
-echo -e "\nRestart the rook ceph tools pod"
+echo -e "\n{Cyan}Restart the rook ceph tools pod"
 kubectl rollout restart deployment rook-ceph-tools
 
 # scale down ocs
@@ -433,4 +430,4 @@ kubectl scale deployment ocs-provider-server --replicas 1
 
 # Get the storage provider endpoint from the Kubernetes API and print it
 storageProviderEndpoint=$(kubectl get StorageCluster ocs-storagecluster -o json | jq -r '.status .storageProviderEndpoint')
-echo "Storage Provider endpoint: ${storageProviderEndpoint}"
+echo "{Green}Storage Provider endpoint ==>: ${storageProviderEndpoint}"

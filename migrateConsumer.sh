@@ -197,8 +197,8 @@ checkStorageClassClaim() {
     claimStatusTwo=$(kubectl get storageclassclaim -n ${operatorNamespace} --no-headers | awk '{print $5}' | awk 'FNR == 2')
     claimNameTwo=$(kubectl get storageclassclaim -n ${operatorNamespace} --no-headers | awk '{print $1}' | awk 'FNR == 2')
 
-    echo "StorageClassClaim "${claimNameOne}" Stauts is "$claimStatusOne
-    echo "StorageClassClaim "${claimNameTwo}" Stauts is "$claimStatusTwo
+    echo -e "\nStorageClassClaim "${claimNameOne}" Stauts is "$claimStatusOne
+    echo -e "\nStorageClassClaim "${claimNameTwo}" Stauts is "$claimStatusTwo
     if [[ $claimStatusOne == *"Ready"* && $claimStatusTwo == *"Ready"* ]]
     then
       break

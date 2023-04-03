@@ -25,6 +25,7 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
+echo -e "\n{Green}Deatach Consumer started"
 echo -e "\nScaling down the addon-operator-manager"
 kubectl scale deployment addon-operator-manager -n openshift-addon-operator --replicas 0
 
@@ -92,3 +93,5 @@ kubectl delete configmap ocs-consumer -n openshift-storage
 
 echo -e "\nScaling up the addon-operator-manager"
 kubectl scale deployment addon-operator-manager -n openshift-addon-operator --replicas 1
+
+echo -e "\n{Green}Deatach Consumer completed"
