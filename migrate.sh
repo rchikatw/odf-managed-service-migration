@@ -55,12 +55,17 @@ do
   fi
 
   volumeAttachments=( $(kubectl get volumeattachment -n openshift-storage | grep 'rbd.csi.ceph.com\|cephfs.csi.ceph.com'| awk '{print $3}') )
+  boundPVs=()
   for volumeAttachment in "${volumeAttachments[@]}"
   do
-    echo "There are still pods which are using the PVC in consumer cluster "$consumerClusterID". Please scale down the application and re-run the script."
-    echo "PVC which is in use "${volumeAttachment}
-    exit
+    boundPVs[${#boundPVs[@]}]=${volumeAttachment}
   done
+  if [[ "${#boundPVs[@]}" > "0" ]]; then
+    echo -e "\nThere are still PVC which are using by pods please scale down the application pod and re-run the script\n"
+    echo -e "\nStrorage Consumer name"$consumerClusterID
+    printf "%s\n" "${boundPVs[@]}"
+    exit
+  fi
 done
 
 echo "Validation Complete!"
@@ -68,7 +73,7 @@ echo "Validation Complete!"
 loginCluster $1 "$backupClusterID"
 
 echo -e "\nTaking a backup of resouces required for backup"
-sh ./backupResources.sh "incluster"
+sh ./backupResources.sh
 echo "Backup Complete!"
 
 echo -e "\nScaling down the rook-ceph pods connected to the EBS Volumes"
