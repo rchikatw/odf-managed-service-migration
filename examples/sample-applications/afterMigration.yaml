@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sample-app-fsAM
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-app-fs
+  namespace: sample-app-fsAM
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-app-fs
+  template:
+    metadata:
+      labels:
+        app: nginx-app-fs
+    spec:
+      containers:
+      - name: nginx
+        image: nginxinc/nginx-unprivileged
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: my-pvc-fsAM
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc-fsAM
+  namespace: sample-app-fsAM
+spec:
+  storageClassName: ocs-storagecluster-cephfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sample-app-rbdM
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-app-rbd
+  namespace: sample-app-rbdM
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-app-rbd
+  template:
+    metadata:
+      labels:
+        app: nginx-app-rbd
+    spec:
+      containers:
+      - name: nginx
+        image: nginxinc/nginx-unprivileged
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: my-pvc-rbdM
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc-rbdM
+  namespace: sample-app-rbdM
+spec:
+  storageClassName: ocs-storagecluster-ceph-rbd
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
