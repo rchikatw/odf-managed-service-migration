@@ -6,6 +6,7 @@ declare -A link
 link[jq]="https://www.cyberithub.com/how-to-install-jq-json-processor-on-rhel-centos-7-8/"
 link[yq]="https://www.cyberithub.com/how-to-install-yq-command-line-tool-on-linux-in-5-easy-steps/"
 link[ocm]="https://console.redhat.com/openshift/downloads"
+link[rosa]="https://console.redhat.com/openshift/downloads"
 link[kubectl]="https://kubernetes.io/docs/tasks/tools/"
 link[aws]="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
 link[curl]="https://curl.se/download.html"
