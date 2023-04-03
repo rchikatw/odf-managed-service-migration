@@ -25,17 +25,13 @@ do
   namespaces+=($fs$i)
 done
 
-printf '%s\n' "${namespaces[@]}"
-
-exit
-
 case "$1" in
   verify)
     for ns in "${namespaces[@]}"
     do
       echo $ns
       podName=$(kubectl get pods -n ${ns} --no-headers | awk '{print $1}')
-      kubectl exec -it ${podName} -n ${ns} -- /bin/bash -c "cd /usr/share/nginx/html; ls; cat name; sleep 2"
+      kubectl exec -it ${podName} -n ${ns} -- /bin/bash -c "cd /usr/share/nginx/html; ls; cat name"
     done
     ;;
   modify)
@@ -43,7 +39,7 @@ case "$1" in
     do
       echo $ns
       podName=$(kubectl get pods -n ${ns} --no-headers | awk '{print $1}')
-      kubectl exec -it ${podName} -n ${ns} -- /bin/bash -c "cd /usr/share/nginx/html; ls; rm testfile13;dd if=/dev/zero of=testfile15 bs=1024 count=102400; sleep 2; ls"
+      kubectl exec -it ${podName} -n ${ns} -- /bin/bash -c "cd /usr/share/nginx/html; ls; rm testfile13;dd if=/dev/zero of=testfile15 bs=1024 count=102400; ls"
     done
     ;;
   populate)
@@ -51,7 +47,7 @@ case "$1" in
     do
       echo $ns
       podName=$(kubectl get pods -n ${ns} --no-headers | awk '{print $1}')
-      kubectl exec -it ${podName} -n ${ns} -- /bin/bash -c "cd /usr/share/nginx/html; dd if=/dev/zero of=testfile12 bs=1024 count=102400; dd if=/dev/zero of=testfile13 bs=1024 count=102400; dd if=/dev/zero of=testfile14 bs=1024 count=102400; echo Hello! Rewant > name; sleep 4"
+      kubectl exec -it ${podName} -n ${ns} -- /bin/bash -c "cd /usr/share/nginx/html; dd if=/dev/zero of=testfile12 bs=1024 count=102400; dd if=/dev/zero of=testfile13 bs=1024 count=102400; dd if=/dev/zero of=testfile14 bs=1024 count=102400; echo Hello! Rewant > name; sleep 1"
     done
     ;;
   scale)
