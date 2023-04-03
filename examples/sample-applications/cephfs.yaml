@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sample-app-fs1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-app-fs
+  namespace: sample-app-fs1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-app-fs
+  template:
+    metadata:
+      labels:
+        app: nginx-app-fs
+    spec:
+      containers:
+      - name: nginx
+        image: nginxinc/nginx-unprivileged
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: my-pvc-fs1
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc-fs1
+  namespace: sample-app-fs1
+spec:
+  storageClassName: ocs-storagecluster-cephfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+---
