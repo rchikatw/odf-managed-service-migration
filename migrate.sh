@@ -31,9 +31,9 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
 fi
 
 if [[ "${1}" == "-d" ]]; then
-  validate "kubectl" "curl" "ocm" "jq" "yq" "aws"
+  validate "kubectl" "curl" "ocm" "jq" "yq" "aws" "rosa"
 else
-  validate "ocm-backplane" "kubectl" "curl" "ocm" "jq" "yq" "aws"
+  validate "ocm-backplane" "kubectl" "curl" "ocm" "jq" "yq" "aws" "rosa"
 fi
 
 echo -e "\nEnter the clusterID of backup cluster: "
@@ -116,4 +116,33 @@ done
 loginCluster $1 "$restoreClusterID"
 sh ./updateEBSVolumeTags.sh
 
+echo -e "\nDeleting the old/backup cluster"
+clusterName=$(ocm list clusters | grep ${backupClusterID} | awk '{print $2}')
+serviceId=$(rosa list services | grep ${clusterName} | awk '{print $1}')
+
+echo -e "\nDeletion of Service is started"
+rosa delete service --id=$serviceId
+
+while true
+do
+
+  state=$(rosa list service | grep $serviceId | awk '{print $3}')
+
+  echo "waiting for service to be deleted current state is "$state
+  if [[ $state == "Waiting for addon" ]];
+  then
+      break
+  fi
+  sleep 60
+done
+
+loginCluster $1 "$backupClusterID"
+kubectl get storageconsumer -n openshift-storage --no-headers | awk '{print $1}' | xargs kubectl patch storageconsumer -p '{"metadata":{"finalizers":null}}' --type=merge -n openshift-storage
+kubectl get storageconsumer -n openshift-storage --no-headers | awk '{print $1}' | xargs kubectl delete storageconsumer -n openshift-storage
+kubectl get storagesystem -n openshift-storage --no-headers | awk '{print $1}' | xargs kubectl patch storagesystem -p '{"metadata":{"finalizers":null}}' --type=merge -n openshift-storage
+kubectl get storagecluster -n openshift-storage --no-headers | awk '{print $1}' | xargs kubectl patch storagecluster -p '{"metadata":{"finalizers":null}}' --type=merge -n openshift-storage
+
+echo -e "\nDeletion of Old Service cluster is started, It will take some to delete the service."
+
 cleanup
+echo -e "\nMigration Process completed!"
