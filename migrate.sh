@@ -62,7 +62,7 @@ do
   done
   if [[ "${#boundPVs[@]}" > "0" ]]; then
     echo -e "\nThere are still PVC which are using by pods please scale down the application pod and re-run the script\n"
-    echo -e "\nStrorage Consumer name"$consumerClusterID
+    echo -e "Cluster ID: "$consumerClusterID
     printf "%s\n" "${boundPVs[@]}"
     exit
   fi
@@ -107,7 +107,7 @@ do
 
   loginCluster $1 "$consumerClusterID"
   #TODO: decide when we want to deatach addon
-  sh ./deatachConsumerAddon.sh "$consumerClusterID"
+  sh ./deatchConsumerAddon.sh "$consumerClusterID"
   echo "ConsumerClusterID: "$consumerClusterID " storageConsumerUID: " ${storageConsumerUID[$consumer]}
   sh ./migrateConsumer.sh "$storageProviderEndpoint" "${storageConsumerUID[$consumer]}" "$consumerClusterID"
   # sh ./restoreConsumer.sh "$storageProviderEndpoint" "${storageConsumerUID[$consumer]}"
@@ -121,7 +121,7 @@ clusterName=$(ocm list clusters | grep ${backupClusterID} | awk '{print $2}')
 serviceId=$(rosa list services | grep ${clusterName} | awk '{print $1}')
 
 echo -e "\nDeletion of Service is started"
-rosa delete service --id=$serviceId
+rosa delete service --id=$serviceId -y
 
 while true
 do
@@ -129,7 +129,7 @@ do
   state=$(rosa list service | grep $serviceId | awk '{print $3}')
 
   echo "waiting for service to be deleted current state is "$state
-  if [[ $state == "Waiting for addon" ]];
+  if [[ $state == "deleting service" ]];
   then
       break
   fi
