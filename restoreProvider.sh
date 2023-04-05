@@ -340,23 +340,28 @@ applyStorageClassClaim() {
     consumerClaimName=`jq -r '.items['$i'] .metadata .labels ."ocs.openshift.io/storageclassclaim-name"' $backupDirectoryName/storageclassclaims/storageclassclaims.json`
     uid=`jq -r '.items['$i'] .metadata .labels ."ocs.openshift.io/storageconsumer-uuid"' $backupDirectoryName/storageclassclaims/storageclassclaims.json`
 
-    json=$(echo {\"storageConsumerUUID\":\"$uid\"\,\"storageClassClaimName\":\"$consumerClaimName\"})
+    json=$(echo {\"storageConsumerUUID\":\"$uid\"\,\"storageClassRequestName\":\"$consumerClaimName\"})
     generatedName=$(echo -n $json | md5sum | awk '{print $1}')
-    newClaimName="storageclassclaim-"$generatedName
+    newClaimName="storageclassrequest-"$generatedName
     oldClaimName=`jq -r '.items['$i'] .metadata .name' $backupDirectoryName/storageclassclaims/storageclassclaims.json`
 
     sed -i 's/'${oldClaimName}'/'${newClaimName}'/g' $backupDirectoryName/storageclassclaims/storageclassclaims.json
     sed -i 's/'${oldClaimName}'/'${newClaimName}'/g' $backupDirectoryName/cephclients/cephclients.json
   done
 
+  sed -i 's/StorageClassClaim/StorageClassRequest/g' $backupDirectoryName/storageclassclaims/storageclassclaims.json
+  sed -i 's/StorageClassClaim/StorageClassRequest/g' $backupDirectoryName/cephclients/cephclients.json #kind
+  sed -i 's/storageclassclaim/storageclassrequest/g' $backupDirectoryName/cephclients/cephclients.json #name
+  sed -i 's/storagesclassclaim/storageclassrequest/g' $backupDirectoryName/cephclients/cephclients.json #for annotiation
+
   kubectl apply -f $backupDirectoryName/storageclassclaims/storageclassclaims.json
   sleep 5
 
-  storageClassClaims=( $(kubectl get storageClassClaims -n openshift-storage --no-headers | awk '{print $1}') )
-  for storageClassClaim in ${storageClassClaims[@]}
+  storageclassrequest=( $(kubectl get storageclassrequest -n openshift-storage --no-headers | awk '{print $1}') )
+  for storageclassrequest in ${storageclassrequest[@]}
   do
-    status=$(jq '.items[] | select(.metadata .name == "'${storageClassClaim}'") | .status' $backupDirectoryName/storageclassclaims/storageclassclaims.json)
-    kubectl patch --subresource=status storageclassclaim ${storageClassClaim} -n openshift-storage --type=merge --patch "{\"status\": ${status} }"
+    status=$(jq '.items[] | select(.metadata .name == "'${storageclassrequest}'") | .status' $backupDirectoryName/storageclassclaims/storageclassclaims.json)
+    kubectl patch --subresource=status storageclassrequest ${storageclassrequest} -n openshift-storage --type=merge --patch "{\"status\": ${status} }"
   done
 }
 
@@ -364,11 +369,11 @@ applyCephClients() {
 
   echo -e "${Cyan}Applying CephClients${EndColor}"
 
-  storageClassClaims=( $(kubectl get storageClassClaims -n openshift-storage --no-headers | awk '{print $1}') )
-  for storageClassClaim in ${storageClassClaims[@]}
+  storageclassrequest=( $(kubectl get storageclassrequest -n openshift-storage --no-headers | awk '{print $1}') )
+  for storageclassrequest in ${storageclassrequest[@]}
   do
-    oldUID=`jq -r --arg scc $storageClassClaim '.items[] .metadata .ownerReferences[0] | select( .name==$scc) | .uid' $backupDirectoryName/cephclients/cephclients.json | awk '{print $1; exit}'`
-    newUID=`kubectl get storageclassclaim $storageClassClaim -n openshift-storage -ojson | jq -r '.metadata .uid'`
+    oldUID=`jq -r --arg scc $storageclassrequest '.items[] .metadata .ownerReferences[0] | select( .name==$scc) | .uid' $backupDirectoryName/cephclients/cephclients.json | awk '{print $1; exit}'`
+    newUID=`kubectl get storageclassrequest $storageclassrequest -n openshift-storage -ojson | jq -r '.metadata .uid'`
     sed -i 's/'${oldUID}'/'${newUID}'/g' $backupDirectoryName/cephclients/cephclients.json
   done
 
