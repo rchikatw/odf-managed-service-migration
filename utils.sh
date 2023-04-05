@@ -12,6 +12,13 @@ link[aws]="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-inst
 link[curl]="https://curl.se/download.html"
 link[ocm-backplane]="https://gitlab.cee.redhat.com/service/backplane-cli"
 
+Red='\033[1;31m'          # Red
+Green='\033[1;32m'        # Green
+Cyan='\033[0;36m'         # Cyan
+EndColor='\e[0m'
+BoldCyan='\033[1;36m'
+Blue='\033[1;34m'          # Blue
+
 loginCluster() {
   if [[ "${1}" == "-d" ]];
   then
@@ -27,7 +34,7 @@ storeKubeconfigAndLoginCluster() {
   response=$(ocm get /api/clusters_mgmt/v1/clusters/${1}/credentials 2>&1)
   kind=$(echo $response | jq .kind | sed "s/\"//g")
   if [[ $kind == "ClusterCredentials" ]]; then
-    echo "Cluster id found, getting kubeconfig"
+    echo "${Green}Cluster ID found, getting kubeconfig"
     ocm get /api/clusters_mgmt/v1/clusters/${1}/credentials | jq -r .kubeconfig > kubeconfig/${1}
     export KUBECONFIG=$(readlink -f kubeconfig/${1})
   else
@@ -42,8 +49,8 @@ validate() {
     if hash $var 2>/dev/null; then
         echo "OK, you have $var installed. We will use that."
     else
-        echo "$var is not installed, Please install and re-run the script again"
-        echo "To download $var cli, refer ${link[$var]}"
+        echo "${Red}$var is not installed, Please install and re-run the script again${EndColor}"
+        echo "${Red}To download $var cli, refer ${link[$var]}${EndColor}"
         exit
     fi
   done

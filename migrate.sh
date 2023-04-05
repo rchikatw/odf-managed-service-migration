@@ -36,12 +36,12 @@ else
   validate "ocm-backplane" "kubectl" "curl" "ocm" "jq" "yq" "aws" "rosa"
 fi
 
-echo -e "\nEnter the clusterID of backup cluster: "
+echo -e "\n${BoldCyan}Enter the clusterID of backup cluster: ${EndColor}"
 read backupClusterID
 
 loginCluster $1 "$backupClusterID"
 
-echo -e "\nValidating if all consumer clusters are above OCP 4.11 and the pods using the PVC are scaled down"
+echo -e "\n${Cyan}Validating if all consumer clusters are above OCP 4.11 and the pods using the PVC are scaled down${EndColor}"
 consumers=( $(kubectl get storageconsumer -n openshift-storage --no-headers | awk '{print $1}') )
 for consumer in $consumers
 do
@@ -50,7 +50,7 @@ do
 
   version=$(kubectl get clusterversion version -oyaml | yq '.status .desired .version')
   if [[ "$version" < "4.11" ]]; then
-  echo "Error: Please update the consumer cluster "$consumerClusterID" to >=4.11.z"
+  echo "${Red}Error: Please update the consumer cluster "$consumerClusterID" to >=4.11.z${EndColor}"
   exit 1
   fi
 
@@ -61,33 +61,31 @@ do
     boundPVs[${#boundPVs[@]}]=${volumeAttachment}
   done
   if [[ "${#boundPVs[@]}" > "0" ]]; then
+<<<<<<< HEAD
     echo -e "\nThere are still PVC which are using by pods please scale down the application pod and re-run the script\n"
     echo -e "Cluster ID: "$consumerClusterID
+=======
+    echo -e "\n${Red}On Consumer with ClusterID: ${EndColor}"$consumerClusterID"${Red} We still have some applications using the PVC, Please scale down/delete the pods and re-run the script.\nPVC's being used are: ${EndColor}"
+>>>>>>> 302ce05 (Adding color codes to echo statements)
     printf "%s\n" "${boundPVs[@]}"
     exit
   fi
 done
 
-echo "Validation Complete!"
+echo "${Cyan}Validation Complete!${EndColor}"
 
 loginCluster $1 "$backupClusterID"
 
-echo -e "\nTaking a backup of resouces required for backup"
 sh ./backupResources.sh
-echo "Backup Complete!"
 
-echo -e "\nScaling down the rook-ceph pods connected to the EBS Volumes"
 sh ./freeEBSVolumes.sh
-echo "Scaling down Complete!"
 
-echo -e "\nEnter the clusterID of the new cluster:"
+echo -e "\n${BoldCyan}Enter the clusterID of the new cluster:${EndColor}"
 read restoreClusterID
 
 loginCluster $1 "$restoreClusterID"
 
-echo -e "\nMigrating to the new Provider"
 sh ./restoreProvider.sh
-echo "Migration of Provider Complete!"
 
 unset storageConsumerUID
 declare -A storageConsumerUID
@@ -116,11 +114,12 @@ done
 loginCluster $1 "$restoreClusterID"
 sh ./updateEBSVolumeTags.sh
 
-echo -e "\nDeleting the old/backup cluster"
+echo -e "\n${Cyan}Deleting the old/backup cluster${EndColor}"
 clusterName=$(ocm list clusters | grep ${backupClusterID} | awk '{print $2}')
 serviceId=$(rosa list services | grep ${clusterName} | awk '{print $1}')
 
-echo -e "\nDeletion of Service is started"
+echo -e "\n${Cyan}Deletion of Service is started${EndColor}"
+
 rosa delete service --id=$serviceId -y
 
 while true
@@ -128,7 +127,7 @@ do
 
   state=$(rosa list service | grep $serviceId | awk '{print $3}')
 
-  echo "waiting for service to be deleted current state is "$state
+  echo "${Blue}waiting for service to be deleted current state is ${EndColor}"$state
   if [[ $state == "deleting service" ]];
   then
       break
@@ -142,7 +141,7 @@ kubectl get storageconsumer -n openshift-storage --no-headers | awk '{print $1}'
 kubectl get storagesystem -n openshift-storage --no-headers | awk '{print $1}' | xargs kubectl patch storagesystem -p '{"metadata":{"finalizers":null}}' --type=merge -n openshift-storage
 kubectl get storagecluster -n openshift-storage --no-headers | awk '{print $1}' | xargs kubectl patch storagecluster -p '{"metadata":{"finalizers":null}}' --type=merge -n openshift-storage
 
-echo -e "\nDeletion of Old Service cluster is started, It will take some to delete the service."
+echo -e "\n${Green}Deletion of Old Provider Service cluster is started, the service will be deleted soon.${EndColor}"
 
 cleanup
-echo -e "\nMigration Process completed!"
+echo -e "\n${Green}Migration Process completed!${EndColor}"
