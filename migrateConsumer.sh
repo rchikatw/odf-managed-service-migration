@@ -75,7 +75,7 @@ releasePV() {
           kubectl delete pv ${pvName}
           break
       fi
-      echo "${Blue}waiting for PV "$pvName" to go to released state, current state is ${EndColor}"$pvStatus
+      echo -e "${Blue}waiting for PV "$pvName" to go to released state, current state is ${EndColor}"$pvStatus
       sleep 5
     done
   done
@@ -173,7 +173,7 @@ checkStorageClient() {
   while true
   do
     clientStatus=$(kubectl get storageclient ${storageClientName} -n ${operatorNamespace} --no-headers | awk '{ print $2; exit }')
-    echo "${Blue}Waiting for storageclient to come in Connected phase, current Stauts is ${EndColor}"$clientStatus
+    echo -e "${Blue}Waiting for storageclient to come in Connected phase, current Stauts is ${EndColor}"$clientStatus
     if [[ $clientStatus == *"Connected"* ]]
     then
       break
@@ -196,8 +196,8 @@ checkStorageClassClaim() {
     claimStatusTwo=$(kubectl get storageclassclaim -n ${operatorNamespace} --no-headers | awk '{print $5}' | awk 'FNR == 2')
     claimNameTwo=$(kubectl get storageclassclaim -n ${operatorNamespace} --no-headers | awk '{print $1}' | awk 'FNR == 2')
 
-    echo "${Blue}Waiting for storageClassClaim ${EndColor}"${claimNameOne}" ${Blue}to come to Ready phase, current phase is ${EndColor}"$claimStatusOne
-    echo "${Blue}Waiting for storageClassClaim ${EndColor}"${claimNameTwo}" ${Blue}to come to Ready phase, current phase is ${EndColor}"$claimStatusTwo
+    echo -e "${Blue}Waiting for storageClassClaim ${EndColor}"${claimNameOne}" ${Blue}to come to Ready phase, current phase is ${EndColor}"$claimStatusOne
+    echo -e "${Blue}Waiting for storageClassClaim ${EndColor}"${claimNameTwo}" ${Blue}to come to Ready phase, current phase is ${EndColor}"$claimStatusTwo
     if [[ $claimStatusOne == *"Ready"* && $claimStatusTwo == *"Ready"* ]]
     then
       break
@@ -310,7 +310,7 @@ mkdir -p ${backupDirectoryName}/pvc/cephfs
 rbdPVNames=( $(kubectl get pv | grep ocs-storagecluster-ceph-rbd | awk '{print $1}') )
 fsPVNames=( $(kubectl get pv | grep ocs-storagecluster-cephfs | awk '{print $1}') )
 
-echo "${Green}Migrate consumer script started${EndColor}"
+echo -e "${Green}Migrate consumer script started${EndColor}"
 backupConsumerResources
 
 releasePV
@@ -343,4 +343,4 @@ patchRBDPVC
 
 patchFSPVC
 
-echo "${Green}Migrate consumer script completed!${EndColor}"
+echo -e "${Green}Migrate consumer script completed!${EndColor}"

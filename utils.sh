@@ -34,7 +34,7 @@ storeKubeconfigAndLoginCluster() {
   response=$(ocm get /api/clusters_mgmt/v1/clusters/${1}/credentials 2>&1)
   kind=$(echo $response | jq .kind | sed "s/\"//g")
   if [[ $kind == "ClusterCredentials" ]]; then
-    echo "${Green}Cluster ID found, getting kubeconfig"
+    echo -e "${Green}Cluster ID found, getting kubeconfig"
     ocm get /api/clusters_mgmt/v1/clusters/${1}/credentials | jq -r .kubeconfig > kubeconfig/${1}
     export KUBECONFIG=$(readlink -f kubeconfig/${1})
   else
@@ -46,19 +46,14 @@ storeKubeconfigAndLoginCluster() {
 validate() {
   for var in "$@"
   do
-    if hash $var 2>/dev/null; then
-        echo "OK, you have $var installed. We will use that."
-    else
-        echo "${Red}$var is not installed, Please install and re-run the script again${EndColor}"
-        echo "${Red}To download $var cli, refer ${link[$var]}${EndColor}"
-        exit
+    if !(hash $var 2>/dev/null); then
+      echo -e "${Red}$var is not installed, Please install and re-run the script again, To download $var cli, refer "${EndColor} "${Cyan}${link[$var]}${EndColor}"
     fi
   done
-
 }
 
 cleanup() {
-  echo "Cleaning up..."
+  echo -e "Cleaning up..."
   # unset the arrays
   unset workerNodeNames
   unset workerIps

@@ -24,7 +24,7 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   usage
   exit 0
 fi
-echo "${Green}Deatach addon script started${EndColor}"
+echo -e "${Green}Deatach addon script started${EndColor}"
 
 echo -e "\n${Cyan}Scaling down the addon-operator-manager${EndColor}"
 kubectl scale deployment addon-operator-manager -n openshift-addon-operator --replicas 0
@@ -33,7 +33,7 @@ kubectl scale deployment addon-operator-manager -n openshift-addon-operator --re
 echo -e "\n${Cyan}Deleting addoninstance from openshift-storage namespace${EndColor}"
 kubectl delete addoninstance addon-instance -n openshift-storage --cascade='orphan'
 
-echo "${Cyan}Patching the addon ocs-consumer to remove finalizers${EndColor}"
+echo -e "${Cyan}Patching the addon ocs-consumer to remove finalizers${EndColor}"
 kubectl patch addon ocs-consumer -p '{"metadata":{"finalizers":null}}' --type=merge
 
 echo -e "\n${Cyan}Deleting addon ocs-consumer${EndColor}"
@@ -51,7 +51,7 @@ do
 
   state=$(ocm get /api/clusters_mgmt/v1/clusters/$1/addons | jq  -r '. | select(.items != null) | .items[] | select(.id == "ocs-consumer") | .state')
 
-  echo "${Blue}waiting for addon to be uninstalled current state is ${EndColor}"$state
+  echo -e "${Blue}waiting for addon to be uninstalled current state is ${EndColor}"$state
   if [[ $state == "deleting" ]];
   then
       break
@@ -67,7 +67,7 @@ do
 
   state=$(ocm get /api/clusters_mgmt/v1/clusters/$1/addons | jq  -r '. | select(.items != null) | .items[] | select(.id == "ocs-consumer") | .state')
 
-  echo "${Blue}waiting for addon to be uninstalled current state is ${EndColor}"$state
+  echo -e "${Blue}waiting for addon to be uninstalled current state is ${EndColor}"$state
   if [ -z "$state" ];
   then
       break
@@ -80,7 +80,7 @@ echo -e "\n${Cyan}Uninstalled ocs-consumer addon${EndColor}"
 echo -e "\n${Cyan}Deleting addon/ocs-osd-deployer subscription${EndColor}"
 kubectl delete subs addon-ocs-consumer -n openshift-storage
 
-echo "${Cyan}Patching the managedocs to remove finalizers${EndColor}"
+echo -e "${Cyan}Patching the managedocs to remove finalizers${EndColor}"
 kubectl patch managedocs managedocs -n openshift-storage -p '{"metadata":{"finalizers":null}}' --type=merge
 echo -e "\n${Cyan}Deleting managedocs CR${EndColor}"
 kubectl delete managedocs managedocs -n openshift-storage --cascade='orphan'
@@ -93,4 +93,4 @@ kubectl delete configmap ocs-consumer -n openshift-storage
 
 echo -e "\n${Cyan}Scaling up the addon-operator-manager${EndColor}"
 kubectl scale deployment addon-operator-manager -n openshift-addon-operator --replicas 1
-echo "${Green}Deatach addon script completed!${EndColor}"
+echo -e "${Green}Deatach addon script completed!${EndColor}"
