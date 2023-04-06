@@ -50,7 +50,7 @@ do
 
   version=$(kubectl get clusterversion version -oyaml | yq '.status .desired .version')
   if [[ "$version" < "4.11" ]]; then
-  echo "${Red}Error: Please update the consumer cluster "$consumerClusterID" to >=4.11.z${EndColor}"
+  echo -e "${Red}Error: Please update the consumer cluster "$consumerClusterID" to >=4.11.z${EndColor}"
   exit 1
   fi
 
@@ -61,18 +61,13 @@ do
     boundPVs[${#boundPVs[@]}]=${volumeAttachment}
   done
   if [[ "${#boundPVs[@]}" > "0" ]]; then
-<<<<<<< HEAD
-    echo -e "\nThere are still PVC which are using by pods please scale down the application pod and re-run the script\n"
-    echo -e "Cluster ID: "$consumerClusterID
-=======
     echo -e "\n${Red}On Consumer with ClusterID: ${EndColor}"$consumerClusterID"${Red} We still have some applications using the PVC, Please scale down/delete the pods and re-run the script.\nPVC's being used are: ${EndColor}"
->>>>>>> 302ce05 (Adding color codes to echo statements)
     printf "%s\n" "${boundPVs[@]}"
     exit
   fi
 done
 
-echo "${Cyan}Validation Complete!${EndColor}"
+echo -e "${Cyan}Validation Complete!${EndColor}"
 
 loginCluster $1 "$backupClusterID"
 
@@ -106,7 +101,7 @@ do
   loginCluster $1 "$consumerClusterID"
   #TODO: decide when we want to deatach addon
   sh ./deatchConsumerAddon.sh "$consumerClusterID"
-  echo "ConsumerClusterID: "$consumerClusterID " storageConsumerUID: " ${storageConsumerUID[$consumer]}
+  echo -e "ConsumerClusterID: "$consumerClusterID " storageConsumerUID: " ${storageConsumerUID[$consumer]}
   sh ./migrateConsumer.sh "$storageProviderEndpoint" "${storageConsumerUID[$consumer]}" "$consumerClusterID"
   # sh ./restoreConsumer.sh "$storageProviderEndpoint" "${storageConsumerUID[$consumer]}"
 done
@@ -127,7 +122,7 @@ do
 
   state=$(rosa list service | grep $serviceId | awk '{print $3}')
 
-  echo "${Blue}waiting for service to be deleted current state is ${EndColor}"$state
+  echo -e "${Blue}waiting for service to be deleted current state is ${EndColor}"$state
   if [[ $state == "deleting service" ]];
   then
       break

@@ -26,7 +26,7 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
-echo "${Green}Update EBS volume tags started${EndColor}"
+echo -e "${Green}Update EBS volume tags started${EndColor}"
 
 pvFilenames=`ls  backup/persistentvolumes/`
 for pv in $pvFilenames
@@ -48,4 +48,4 @@ do
   aws ec2 create-tags --tags Key=Name,Value=$restoreValue --resources $volumeID --region $region
 done
 
-echo "${Green} Finished Updating EBS volume tags ${EndColor}"
+echo -e "${Green} Finished Updating EBS volume tags ${EndColor}"

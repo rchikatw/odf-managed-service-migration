@@ -24,7 +24,7 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
-echo "${Green}Backup of provider resource script started${EndColor}"
+echo -e "${Green}Backup of provider resource script started${EndColor}"
 echo -e "${Cyan}Creating required directories for backup${EndColor}"
 rm -rf backup
 mkdir backup
@@ -62,4 +62,4 @@ echo -e "${Cyan}Backing up cephClient${EndColor}"
 cd ../cephclients
 kubectl get cephclient -n openshift-storage -ojson > cephclients.json
 
-echo "${Green}Backup Provider resource script completed!${EndColor}"
+echo -e "${Green}Backup Provider resource script completed!${EndColor}"

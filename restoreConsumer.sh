@@ -24,7 +24,7 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
-echo "${Green}Restore consumer script started!${EndColor}"
+echo -e "${Green}Restore consumer script started!${EndColor}"
 
 kubectl patch storagecluster ocs-storagecluster -n openshift-storage -p '{"spec": {"externalStorage": {"storageProviderEndpoint": "'${1}'"}}}' --type merge
 
@@ -43,4 +43,4 @@ kill $(lsof -t -i:8081)
 
 kubectl rollout restart deployment ocs-operator -n openshift-storage
 
-echo "${Green}Restore consumer script complted!${EndColor}"
+echo -e "${Green}Restore consumer script complted!${EndColor}"

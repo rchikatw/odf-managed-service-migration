@@ -38,16 +38,16 @@ declare -A mons
 validateClusterRequirement() {
 
   # Check if the openshift-storage namespace exists
-  echo "${Cyan}Checking if the namespace openshift-storage exist${EndColor}"
+  echo -e "${Cyan}Checking if the namespace openshift-storage exist${EndColor}"
   if kubectl get namespaces openshift-storage &> /dev/null; then
-    echo "${Green}Namespace exists!"
+    echo -e "${Green}Namespace exists!"
   else
-    echo "${Red}Namespace does not exist! Exiting..${EndColor}"
+    echo -e "${Red}Namespace does not exist! Exiting..${EndColor}"
     cleanup
     exit
   fi
 
-  echo "${Cyan}Switching to the openshift-storage namespace${EndColor}"
+  echo -e "${Cyan}Switching to the openshift-storage namespace${EndColor}"
   kubectl config set-context --current --namespace=openshift-storage
 
 }
@@ -56,7 +56,7 @@ checkDeployerCSV() {
   while true
   do
     csvStatus=$(kubectl get csv | grep managed-fusion | awk '{ print $6; exit }')
-    echo "${Blue}Waiting for managed-fusion CSV to come in Succeeded phase, current csvStatus is ${EndColor}"$csvStatus
+    echo -e "${Blue}Waiting for managed-fusion CSV to come in Succeeded phase, current csvStatus is ${EndColor}"$csvStatus
     if [[ $csvStatus == *"Succeeded"* ]]
     then
           break
@@ -67,24 +67,24 @@ checkDeployerCSV() {
 
 deleteResources() {
   # Delete the resources on new provider cluster
-  echo "${Cyan}Stopping rook-ceph operator${EndColor}"
+  echo -e "${Cyan}Stopping rook-ceph operator${EndColor}"
   kubectl scale deployment rook-ceph-operator --replicas 0
 
-  echo "${Cyan}Removing all deployments expect rook-ceph-operator${EndColor}"
+  echo -e "${Cyan}Removing all deployments expect rook-ceph-operator${EndColor}"
   kubectl delete deployments -l rook_cluster=openshift-storage
 
-  echo "${Cyan}Patching the secrets to remove finalizers${EndColor}"
+  echo -e "${Cyan}Patching the secrets to remove finalizers${EndColor}"
   kubectl patch secret rook-ceph-mon -p '{"metadata":{"finalizers":null}}' --type=merge
 
-  echo "${Cyan}Deleting the secrets which are needs to be configured${EndColor}"
+  echo -e "${Cyan}Deleting the secrets which are needs to be configured${EndColor}"
   kubectl delete secret rook-ceph-mon
   kubectl delete secret rook-ceph-admin-keyring
   kubectl delete secret rook-ceph-mons-keyring
 
-  echo "${Cyan}Deleting the osd prepare jobs if any${EndColor}"
+  echo -e "${Cyan}Deleting the osd prepare jobs if any${EndColor}"
   kubectl delete jobs -l app=rook-ceph-osd-prepare
 
-  echo "${Cyan}Removing all PVC & PV from the namespace${EndColor}"
+  echo -e "${Cyan}Removing all PVC & PV from the namespace${EndColor}"
   kubectl delete pvc --all
 }
 
@@ -192,7 +192,7 @@ injectMonMap() {
     while true
     do
       podStatus=$(kubectl get pods | grep $mon | awk '{ print $3; exit }')
-      echo "${Blue}Waiting for mon ${EndColor}"$monName"${Blue} pod to come in CrashLoopBackOff status, current podStatus is ${EndColor}"$podStatus
+      echo -e "${Blue}Waiting for mon ${EndColor}"$monName"${Blue} pod to come in CrashLoopBackOff status, current podStatus is ${EndColor}"$podStatus
       if [[ $podStatus == *"CrashLoopBackOff"* ]]
       then
             break
@@ -214,14 +214,14 @@ injectMonMap() {
     extractMonmap=$args" --extract-monmap=/tmp/monmap "
     injectMonmap=$args" --inject-monmap=/tmp/monmap "
 
-    echo "extractMonmap: "${extractMonmap}
-    echo "injectMonmap: "${injectMonmap}
+    echo -e "extractMonmap: "${extractMonmap}
+    echo -e "injectMonmap: "${injectMonmap}
 
     while true
     do
       podStatus=$(kubectl get pods | grep $mon | awk '{ print $3; exit }')
       containerCount=$(kubectl get pods | grep $mon | awk '{ print $2; exit }')
-      echo "${Blue}Waiting for mon ${EndColor}"$monName"${Blue} pod to come in Running status, current podStatus is ${EndColor}"$podStatus
+      echo -e "${Blue}Waiting for mon ${EndColor}"$monName"${Blue} pod to come in Running status, current podStatus is ${EndColor}"$podStatus
       if [[ $podStatus == *"Running"* ]]
       then
           break
@@ -271,7 +271,7 @@ checkMonStatus() {
     do
       podStatus=$(kubectl get pods | grep rook-ceph-mon-${mon} | awk '{ print $3; exit }')
       containerCount=$(kubectl get pods | grep rook-ceph-mon-${mon} | awk '{ print $2; exit }')
-      echo "${Blue}Mon deployment ${EndColor}"${mon}"${Blue} podStatus is ${EndColor}"$podStatus"${Blue} containerCount is ${EndColor}"$containerCount
+      echo -e "${Blue}Mon deployment ${EndColor}"${mon}"${Blue} podStatus is ${EndColor}"$podStatus"${Blue} containerCount is ${EndColor}"$containerCount
       if [[ $podStatus == *"Running"* && $containerCount == "2/2" ]]
       then
           break
@@ -302,7 +302,7 @@ applyStorageConsumers() {
   consumers=`ls  $backupDirectoryName/storageconsumers`
   for entry in $consumers
   do
-    echo "${Cyan}Applying StorageConsumer: ${EndColor}"$entry
+    echo -e "${Cyan}Applying StorageConsumer: ${EndColor}"$entry
     kubectl apply -f $backupDirectoryName/storageconsumers/$entry
     sleep 5
 
@@ -355,7 +355,7 @@ applyStorageClassClaim() {
 
 applyCephClients() {
 
-  echo "${Cyan}Applying CephClients${EndColor}"
+  echo -e "${Cyan}Applying CephClients${EndColor}"
 
   storageClassClaims=( $(kubectl get storageClassClaims -n openshift-storage --no-headers | awk '{print $1}') )
   for storageClassClaim in ${storageClassClaims[@]}
@@ -376,7 +376,7 @@ applyCephClients() {
   done
 }
 
-echo "${Green} Migration of provider cluster started ${EndColor}"
+echo -e "${Green} Migration of provider cluster started ${EndColor}"
 
 backupDirectoryName=backup
 
@@ -431,5 +431,5 @@ kubectl scale deployment ocs-provider-server --replicas 1
 
 # Get the storage provider endpoint from the Kubernetes API and print it
 storageProviderEndpoint=$(kubectl get StorageCluster ocs-storagecluster -o json | jq -r '.status .storageProviderEndpoint')
-echo "${Green}Storage Provider endpoint: ${storageProviderEndpoint}${EndColor}"
-echo "${Green} Migration of provider is completed!${EndColor}"
+echo -e "${Green}Storage Provider endpoint: ${storageProviderEndpoint}${EndColor}"
+echo -e "${Green} Migration of provider is completed!${EndColor}"
