@@ -30,6 +30,8 @@ backupVolumes() {
 }
 
 backupConsumerResources() {
+
+  echo -e "\n${Cyan}Backing up PV, PVC, storageCluster and storageClassClaim${EndColor}"
   #pvc and pv backup
   for pvName in "${rbdPVNames[@]}"
   do
@@ -53,6 +55,8 @@ backupConsumerResources() {
 }
 
 releasePV() {
+
+  echo -e "\n${Cyan}Deleting the PVC followed by PV ${EndColor}"
   #edit pv to change reclaim policy to retain, and delete the pvc to release PV
   pvFilenames=("${rbdPVNames[@]}" "${fsPVNames[@]}")
   for pvName in "${pvFilenames[@]}";
@@ -82,6 +86,8 @@ releasePV() {
 }
 
 deleteNamespace(){
+
+  echo -e "\n${Cyan}Deleting the namespace openshift-storage and everything in it ${EndColor}"
 
   kubectl get csv -n openshift-storage | grep 'ocs\|odf\|mcg\|ose' | awk '{print $1}' | xargs kubectl delete csv -n openshift-storage
   kubectl get subs -n openshift-storage | grep 'ocs\|odf\|mcg' | awk '{print $1}' | xargs kubectl delete subs -n openshift-storage
@@ -113,7 +119,7 @@ spec:
   grpcPodConfig:
     securityContextConfig: legacy
   sourceType: grpc
-  image: quay.io/madhupr001/ocs-client-operator-catalog:latest
+  image: quay.io/rhceph-dev/ocs-registry:4.13.0-130
   displayName: OpenShift Data Foundation Client Operator
   publisher: Red Hat
 ---
@@ -137,20 +143,21 @@ metadata:
   name: ocs-client-operator
   namespace: ocs-client-ns
 spec:
-  channel: alpha
+  channel: stable-4.13
   installPlanApproval: Automatic
   name: ocs-client-operator
   source: ocs-client-catalogsource
   sourceNamespace: openshift-marketplace
 EOF
 }
+
 checkOperatorCSV() {
-  
+
   while true
   do
-    csvStatus=$(kubectl get csv -n ${operatorNamespace} | grep ocs-client-operator | awk '{ print $7; exit }')
-    echo -e "\n${Blue}Waiting for ocs-client-operator CSV to come to Succeeded phase, current CSV Status is ${EndColor}"$csvStatus
-    
+    csvStatus=$(kubectl get csv -n ${operatorNamespace} $(kubectl get csv -n ${operatorNamespace}| grep ocs-client-operator | awk '{print $1;exit}') -oyaml | yq '.status .phase')
+    echo -e "${Blue}Waiting for ocs-client-operator CSV to come to Succeeded phase, current CSV Status is ${EndColor}"$csvStatus
+
     if [[ $csvStatus == *"Succeeded"* ]]
     then
       break
@@ -160,6 +167,8 @@ checkOperatorCSV() {
 }
 
 createStorageClient() {
+
+  echo -e "\n${Cyan}Creating storageClient${EndColor}"
   id=$2
   onBoardingTicket=$(yq '.items[].spec.externalStorage.onboardingTicket' $backupDirectoryName/storagecluster.yaml)
   storageProviderEndpoint=$1
@@ -172,7 +181,7 @@ createStorageClient() {
 checkStorageClient() {
   while true
   do
-    clientStatus=$(kubectl get storageclient ${storageClientName} -n ${operatorNamespace} --no-headers | awk '{ print $2; exit }')
+    clientStatus=$(kubectl get storageclient ${storageClientName} -n ${operatorNamespace} -oyaml | yq '.status .phase')
     echo -e "${Blue}Waiting for storageclient to come in Connected phase, current Stauts is ${EndColor}"$clientStatus
     if [[ $clientStatus == *"Connected"* ]]
     then
@@ -183,6 +192,7 @@ checkStorageClient() {
 }
 
 applyStorageClassClaim() {
+  echo -e "\n${Cyan}Applying storageClassClaim from backup${EndColor}"
   yq eval -i '.items[].spec +={"storageClient":{"name":"'${storageClientName}'","namespace":"'${operatorNamespace}'"}}' $backupDirectoryName/storageclassclaim.yaml
   kubectl apply -f $backupDirectoryName/storageclassclaim.yaml
 }
@@ -190,11 +200,11 @@ applyStorageClassClaim() {
 checkStorageClassClaim() {
   while true
   do
-    claimStatusOne=$(kubectl get storageclassclaim -n ${operatorNamespace} --no-headers | awk '{print $5}' | awk 'FNR == 1')
     claimNameOne=$(kubectl get storageclassclaim -n ${operatorNamespace} --no-headers | awk '{print $1}' | awk 'FNR == 1')
+    claimStatusOne=$(kubectl get storageclassclaim -n ${operatorNamespace} ${claimNameOne} -oyaml | yq '.status .phase')
 
-    claimStatusTwo=$(kubectl get storageclassclaim -n ${operatorNamespace} --no-headers | awk '{print $5}' | awk 'FNR == 2')
     claimNameTwo=$(kubectl get storageclassclaim -n ${operatorNamespace} --no-headers | awk '{print $1}' | awk 'FNR == 2')
+    claimStatusTwo=$(kubectl get storageclassclaim -n ${operatorNamespace} ${claimNameTwo} -oyaml | yq '.status .phase')
 
     echo -e "${Blue}Waiting for storageClassClaim ${EndColor}"${claimNameOne}" ${Blue}to come to Ready phase, current phase is ${EndColor}"$claimStatusOne
     echo -e "${Blue}Waiting for storageClassClaim ${EndColor}"${claimNameTwo}" ${Blue}to come to Ready phase, current phase is ${EndColor}"$claimStatusTwo
@@ -322,18 +332,20 @@ createOCSClientOperator
 checkOperatorCSV
 
 #scale down the operator
-kubectl scale deployments ocs-client-operator-controller-manager -n $operatorNamespace --replicas 0
+kubectl scale deployments $(kubectl get deployments -n $operatorNamespace | grep ocs-client-operator | awk '{print $1;exit}') -n $operatorNamespace --replicas 0
 
 createStorageClient $1 $2
 
 #scale up the operator
-kubectl scale deployments ocs-client-operator-controller-manager -n $operatorNamespace --replicas 1
+kubectl scale deployments $(kubectl get deployments -n $operatorNamespace | grep ocs-client-operator | awk '{print $1;exit}') -n $operatorNamespace --replicas 1
 
 checkStorageClient
 
 applyStorageClassClaim
 
 checkStorageClassClaim
+
+echo -e "\n${Cyan}Patching the PV and PVC before applying${EndColor}"
 
 patchRBDPV
 
@@ -343,4 +355,4 @@ patchRBDPVC
 
 patchFSPVC
 
-echo -e "${Green}Migrate consumer script completed!${EndColor}"
+echo -e "${Green}Migrate consumer script completed!${EndColor}\n"

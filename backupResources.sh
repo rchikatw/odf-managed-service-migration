@@ -26,11 +26,9 @@ fi
 
 echo -e "${Green}Backup of provider resource script started${EndColor}"
 echo -e "${Cyan}Creating required directories for backup${EndColor}"
+
 rm -rf backup
-mkdir backup
-cd backup
-mkdir -p {deployments,persistentvolumes,persistentvolumeclaims,secrets,storageconsumers,storageclassclaims,cephclients}
-cd ..
+mkdir -p {backup/deployments,backup/persistentvolumes,backup/persistentvolumeclaims,backup/secrets,backup/storageconsumers,backup/storageclassclaims,backup/cephclients}
 
 cd backup/
 
@@ -62,4 +60,4 @@ echo -e "${Cyan}Backing up cephClient${EndColor}"
 cd ../cephclients
 kubectl get cephclient -n openshift-storage -ojson > cephclients.json
 
-echo -e "${Green}Backup Provider resource script completed!${EndColor}"
+echo -e "${Green}Backup Provider resource script completed!${EndColor}\n"

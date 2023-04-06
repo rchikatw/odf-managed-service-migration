@@ -53,10 +53,17 @@ validateClusterRequirement() {
 }
 
 checkDeployerCSV() {
+
+  csv=$(kubectl get csv | grep managed-fusion | awk '{print $1;exit}')
+  if [ -z "$csv" ];
+  then
+    csv=$(kubectl get csv | grep ocs-osd-deployer | awk '{print $1;exit}')
+  fi
+
   while true
   do
-    csvStatus=$(kubectl get csv | grep managed-fusion | awk '{ print $6; exit }')
-    echo -e "${Blue}Waiting for managed-fusion CSV to come in Succeeded phase, current csvStatus is ${EndColor}"$csvStatus
+    csvStatus=$(kubectl get csv $csv -oyaml | yq '.status .phase')
+    echo -e "${Blue}Waiting for "$csv" CSV to come in Succeeded phase, current csvStatus is ${EndColor}"$csvStatus
     if [[ $csvStatus == *"Succeeded"* ]]
     then
           break
@@ -376,7 +383,7 @@ applyCephClients() {
   done
 }
 
-echo -e "${Green} Migration of provider cluster started ${EndColor}"
+echo -e "${Green}Migration of provider cluster started${EndColor}"
 
 backupDirectoryName=backup
 
@@ -432,4 +439,4 @@ kubectl scale deployment ocs-provider-server --replicas 1
 # Get the storage provider endpoint from the Kubernetes API and print it
 storageProviderEndpoint=$(kubectl get StorageCluster ocs-storagecluster -o json | jq -r '.status .storageProviderEndpoint')
 echo -e "${Green}Storage Provider endpoint: ${storageProviderEndpoint}${EndColor}"
-echo -e "${Green} Migration of provider is completed!${EndColor}"
+echo -e "${Green}Migration of provider is completed!${EndColor}\n"

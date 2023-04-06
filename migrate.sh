@@ -10,12 +10,11 @@ usage() {
     1. kubectl, ocm installed.
     2. clusterID for the clusters
 
-  USAGE: "./migrate.sh [-d]"
+  USAGE: "./migrate.sh [-d] [env for consumer addon [-dev]/[-qe]]"
 
-  Note: Use -d when not using ocm-backplane
-
-  To install kubectl & ocm refer:
-  1. kubectl: ${link[kubectl]}
+  Note:
+  1. Use -d when not using ocm-backplane
+  2. Env for consumer addon by default is production, use -dev/-qe for testing
 
 EOF
 }
@@ -34,6 +33,11 @@ if [[ "${1}" == "-d" ]]; then
   validate "kubectl" "curl" "ocm" "jq" "yq" "aws" "rosa"
 else
   validate "ocm-backplane" "kubectl" "curl" "ocm" "jq" "yq" "aws" "rosa"
+fi
+
+if [[ "${2}" != "-dev" ]] && [[ "${2}" != "-qe" ]] && [[ "${2}" != "" ]]; then
+  usage
+  exit 0
 fi
 
 echo -e "\n${BoldCyan}Enter the clusterID of backup cluster: ${EndColor}"
@@ -100,7 +104,7 @@ do
 
   loginCluster $1 "$consumerClusterID"
   #TODO: decide when we want to deatach addon
-  sh ./deatchConsumerAddon.sh "$consumerClusterID"
+  sh ./deatchConsumerAddon.sh "$consumerClusterID" "$2"
   echo -e "ConsumerClusterID: "$consumerClusterID " storageConsumerUID: " ${storageConsumerUID[$consumer]}
   sh ./migrateConsumer.sh "$storageProviderEndpoint" "${storageConsumerUID[$consumer]}" "$consumerClusterID"
   # sh ./restoreConsumer.sh "$storageProviderEndpoint" "${storageConsumerUID[$consumer]}"
@@ -120,7 +124,7 @@ rosa delete service --id=$serviceId -y
 while true
 do
 
-  state=$(rosa list service | grep $serviceId | awk '{print $3}')
+  state=$(rosa list service | grep $serviceId | awk '{print $3" "$4}')
 
   echo -e "${Blue}waiting for service to be deleted current state is ${EndColor}"$state
   if [[ $state == "deleting service" ]];

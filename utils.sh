@@ -34,7 +34,7 @@ storeKubeconfigAndLoginCluster() {
   response=$(ocm get /api/clusters_mgmt/v1/clusters/${1}/credentials 2>&1)
   kind=$(echo $response | jq .kind | sed "s/\"//g")
   if [[ $kind == "ClusterCredentials" ]]; then
-    echo -e "${Green}Cluster ID found, getting kubeconfig"
+    echo -e "${Cyan}Cluster ID found, getting kubeconfig${EndColor}"
     ocm get /api/clusters_mgmt/v1/clusters/${1}/credentials | jq -r .kubeconfig > kubeconfig/${1}
     export KUBECONFIG=$(readlink -f kubeconfig/${1})
   else
@@ -53,7 +53,6 @@ validate() {
 }
 
 cleanup() {
-  echo -e "Cleaning up..."
   # unset the arrays
   unset workerNodeNames
   unset workerIps
