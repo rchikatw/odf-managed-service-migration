@@ -48,4 +48,4 @@ do
   aws ec2 create-tags --tags Key=Name,Value=$restoreValue --resources $volumeID --region $region
 done
 
-echo -e "${Green} Finished Updating EBS volume tags ${EndColor}"
+echo -e "${Green}Finished Updating EBS volume tags ${EndColor}"
