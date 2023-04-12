@@ -1,6 +1,6 @@
 #!/bin/bash
 source ./utils.sh
-
+source ./deatchConsumerAddon.sh
 usage() {
   cat << EOF
 
@@ -43,6 +43,9 @@ fi
 echo -e "\n${BoldCyan}Enter the clusterID of backup cluster: ${EndColor}"
 read backupClusterID
 
+echo -e "\n${BoldCyan}Enter the clusterID of the new cluster:${EndColor}"
+read restoreClusterID
+
 loginCluster $1 "$backupClusterID"
 
 echo -e "\n${Cyan}Validating if all consumer clusters are above OCP 4.11 and the pods using the PVC are scaled down${EndColor}"
@@ -73,14 +76,19 @@ done
 
 echo -e "${Cyan}Validation Complete!${EndColor}"
 
+for consumer in $consumers
+do
+  consumerClusterID=$(ocm list clusters --columns ID,name,externalID | grep ${consumer#*-} | awk '{ print $1; exit}')
+
+  loginCluster $1 "$consumerClusterID"
+  deatchAddon "$consumerClusterID" "$2"
+done
+
 loginCluster $1 "$backupClusterID"
 
 sh ./backupResources.sh
 
 sh ./freeEBSVolumes.sh
-
-echo -e "\n${BoldCyan}Enter the clusterID of the new cluster:${EndColor}"
-read restoreClusterID
 
 loginCluster $1 "$restoreClusterID"
 
@@ -103,8 +111,7 @@ do
   consumerClusterID=$(ocm list clusters --columns ID,name,externalID | grep ${consumer#*-} | awk '{ print $1; exit}')
 
   loginCluster $1 "$consumerClusterID"
-  #TODO: decide when we want to deatach addon
-  sh ./deatchConsumerAddon.sh "$consumerClusterID" "$2"
+  deleteResources "$consumerClusterID" "$2"
   echo -e "ConsumerClusterID: "$consumerClusterID " storageConsumerUID: " ${storageConsumerUID[$consumer]}
   sh ./migrateConsumer.sh "$storageProviderEndpoint" "${storageConsumerUID[$consumer]}" "$consumerClusterID"
   # sh ./restoreConsumer.sh "$storageProviderEndpoint" "${storageConsumerUID[$consumer]}"
@@ -114,7 +121,7 @@ loginCluster $1 "$restoreClusterID"
 sh ./updateEBSVolumeTags.sh
 
 echo -e "\n${Cyan}Deleting the old/backup cluster${EndColor}"
-clusterName=$(ocm list clusters | grep ${backupClusterID} | awk '{print $2}')
+clusterName=$(ocm list clusters --columns ID,name,externalID | grep ${backupClusterID} | awk '{print $2}')
 serviceId=$(rosa list services | grep ${clusterName} | awk '{print $1}')
 
 echo -e "\n${Cyan}Deletion of Service is started${EndColor}"
