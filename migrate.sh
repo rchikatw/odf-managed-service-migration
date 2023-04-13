@@ -107,7 +107,6 @@ do
   sh ./deatchConsumerAddon.sh "$consumerClusterID" "$2"
   echo -e "ConsumerClusterID: "$consumerClusterID " storageConsumerUID: " ${storageConsumerUID[$consumer]}
   sh ./migrateConsumer.sh "$storageProviderEndpoint" "${storageConsumerUID[$consumer]}" "$consumerClusterID"
-  # sh ./restoreConsumer.sh "$storageProviderEndpoint" "${storageConsumerUID[$consumer]}"
 done
 
 loginCluster $1 "$restoreClusterID"
