@@ -3,7 +3,6 @@
 - freeEBSVolumes.sh -> Scale down the osd and mon pods on the provider cluster.
 - restoreProvider.sh -> Restore a ODF MS provider into a new cluster.
 - deatchConsumerAddon.sh -> Deatch the ODF MS consumer addon from hive.
-- restoreConsumer.sh -> Update the StorageConsumer id and StorageProviderEndpoint in the StorageCluster CR.
 - updateEBSVolumeTags.sh -> Update the aws ebs volume tags for osd's and mon's from provider cluster.
 - migrateConsumer.sh -> Migrates the from old cluster to new cluster.
 - migrate.sh -> Will run all necessary script to migrate cluster.

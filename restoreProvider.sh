@@ -227,7 +227,6 @@ injectMonMap() {
     while true
     do
       podStatus=$(kubectl get pods | grep $mon | awk '{ print $3; exit }')
-      containerCount=$(kubectl get pods | grep $mon | awk '{ print $2; exit }')
       echo -e "${Blue}Waiting for mon ${EndColor}"$monName"${Blue} pod to come in Running status, current podStatus is ${EndColor}"$podStatus
       if [[ $podStatus == *"Running"* ]]
       then
@@ -276,10 +275,9 @@ checkMonStatus() {
   do
     while true
     do
-      podStatus=$(kubectl get pods | grep rook-ceph-mon-${mon} | awk '{ print $3; exit }')
-      containerCount=$(kubectl get pods | grep rook-ceph-mon-${mon} | awk '{ print $2; exit }')
-      echo -e "${Blue}Mon deployment ${EndColor}"${mon}"${Blue} podStatus is ${EndColor}"$podStatus"${Blue} containerCount is ${EndColor}"$containerCount
-      if [[ $podStatus == *"Running"* && $containerCount == "2/2" ]]
+      podStatusArr=( $(kubectl get pods | grep rook-ceph-mon-${mon} | awk '{ print $3, $2; exit }') )
+      echo -e "${Blue}Mon deployment ${EndColor}"${mon}"${Blue} podStatus is ${EndColor}"${podStatusArr[0]}"${Blue} containerCount is ${EndColor}"${podStatusArr[1]}
+      if [[ ${podStatusArr[0]} == *"Running"* && ${podStatusArr[1]} == "2/2" ]]
       then
           break
       fi
