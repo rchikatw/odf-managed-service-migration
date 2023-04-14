@@ -47,3 +47,6 @@ oc exec -it $(oc get pods -n ${ns} --no-headers | awk '{print $1}') -n ${ns} -- 
 
 rs=
 oc get ${rs} --no-headers | awk '{print $1}' | xargs kubectl patch ${rs} -p '{"metadata":{"finalizers":null}}' --type=merge -n openshift-storage; oc get ${rs} --no-headers | awk '{print $1}' | xargs kubectl delete ${rs}
+
+rs=( a v )
+for r in ${rs[@]}; do oc get ${r} --no-headers | awk '{print $1}' | xargs kubectl patch ${r} -p '{"metadata":{"finalizers":null}}' --type=merge ; oc get ${r} --no-headers | awk '{print $1}' | xargs kubectl delete ${r}; done

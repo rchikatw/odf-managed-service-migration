@@ -12,6 +12,10 @@ link[aws]="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-inst
 link[curl]="https://curl.se/download.html"
 link[ocm-backplane]="https://gitlab.cee.redhat.com/service/backplane-cli"
 
+dfOfferingNamespace="fusion-storage"
+clientOperatorNamespace="fusion-storage"
+storageClientName="storageclient"
+
 Red='\033[1;31m'          # Red
 Green='\033[1;32m'        # Green
 Cyan='\033[0;36m'         # Cyan
