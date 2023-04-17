@@ -29,6 +29,7 @@ fi
 echo -e "${Green}Update EBS volume tags started${EndColor}"
 
 pvFilenames=`ls  backup/persistentvolumes/`
+namespaceKey="kubernetes.io/created-for/pvc/namespace"
 for pv in $pvFilenames
 do
   volumeID=$(cat backup/persistentvolumes/$pv | jq -r '.spec .awsElasticBlockStore .volumeID |  split("/") | .[-1]')
@@ -46,6 +47,9 @@ do
   restoreKeyName=${keyName##*/}
   restoreValue=${nameValue/$backupKeyName/$restoreKeyName}
   aws ec2 create-tags --tags Key=Name,Value=$restoreValue --resources $volumeID --region $region
+
+  aws ec2 delete-tags --tags Key=$namespaceKey --resources $volumeID --region $region
+  aws ec2 create-tags --tags Key=$namespaceKey,Value=$dfOfferingNamespace --resources $volumeID --region $region
 done
 
 echo -e "${Green}Finished Updating EBS volume tags ${EndColor}"

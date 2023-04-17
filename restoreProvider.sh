@@ -37,9 +37,9 @@ declare -A mons
 
 validateClusterRequirement() {
 
-  # Check if the openshift-storage namespace exists
-  echo -e "${Cyan}Checking if the namespace openshift-storage exist${EndColor}"
-  if kubectl get namespaces openshift-storage &> /dev/null; then
+  # Check if the dfOfferingNamespace namespace exists
+  echo -e "${Cyan}Checking if the namespace ${dfOfferingNamespace} exist${EndColor}"
+  if kubectl get namespaces ${dfOfferingNamespace} &> /dev/null; then
     echo -e "${Green}Namespace exists!"
   else
     echo -e "${Red}Namespace does not exist! Exiting..${EndColor}"
@@ -47,8 +47,8 @@ validateClusterRequirement() {
     exit
   fi
 
-  echo -e "${Cyan}Switching to the openshift-storage namespace${EndColor}"
-  kubectl config set-context --current --namespace=openshift-storage
+  echo -e "${Cyan}Switching to the ${dfOfferingNamespace} namespace${EndColor}"
+  kubectl config set-context --current --namespace=${dfOfferingNamespace}
 
 }
 
@@ -77,8 +77,9 @@ deleteResources() {
   echo -e "${Cyan}Stopping rook-ceph operator${EndColor}"
   kubectl scale deployment rook-ceph-operator --replicas 0
 
+  #TODO: check this
   echo -e "${Cyan}Removing all deployments expect rook-ceph-operator${EndColor}"
-  kubectl delete deployments -l rook_cluster=openshift-storage
+  kubectl delete deployments -l rook_cluster=${dfOfferingNamespace}
 
   echo -e "${Cyan}Patching the secrets to remove finalizers${EndColor}"
   kubectl patch secret rook-ceph-mon -p '{"metadata":{"finalizers":null}}' --type=merge
@@ -121,6 +122,7 @@ applyPersistentVolumeClaims() {
   do
     # replace with cephcluster uid
     cat <<< $(jq --arg uid $uid '.metadata .ownerReferences[0] .uid=$uid' $pvc) > $pvc
+    sed -i 's/openshift-storage/'${dfOfferingNamespace}'/g' $pvc
     kubectl apply -f $pvc
   done
 
@@ -135,6 +137,7 @@ applySecrets() {
   do
     # replace with cephcluster uid
     cat <<< $(jq --arg uid $uid '.metadata .ownerReferences[0] .uid=$uid' $secret) > $secret
+    sed -i 's/openshift-storage/'${dfOfferingNamespace}'/g' $secret
     kubectl apply -f $secret
   done
 
@@ -170,6 +173,7 @@ applyMonDeploymens() {
     # ownerReference gets added after starting rook-ceph-operator
     cat <<< $(jq 'del(.metadata .ownerReferences)' $entry) > $entry
     cat <<< $(jq --arg workerNodeName ${workerNodeNames[$monName]} '.spec .template .spec .nodeSelector ."kubernetes.io/hostname" = $workerNodeName ' $entry) > $entry
+    sed -i 's/openshift-storage/'${dfOfferingNamespace}'/g' $entry
     kubectl apply -f $entry
   done
 
@@ -236,7 +240,7 @@ injectMonMap() {
       sleep 2
     done
 
-    kubectl exec -it ${podName} -- /bin/bash -c " cluster_namespace=openshift-storage ; ceph-mon $extractMonmap ;  monmaptool --print /tmp/monmap ; monmaptool /tmp/monmap --rm ${mons[1]} ;  monmaptool /tmp/monmap --rm ${mons[2]} ; monmaptool /tmp/monmap --rm ${mons[3]} ; monmaptool /tmp/monmap --add ${mons[1]} ${workerIps[${mons[1]}]} ; monmaptool /tmp/monmap --add ${mons[2]} ${workerIps[${mons[2]}]} ; monmaptool /tmp/monmap --add ${mons[3]} ${workerIps[${mons[3]}]} ; sleep 2 ; ceph-mon $injectMonmap ; monmaptool --print /tmp/monmap ; sleep 2"
+    kubectl exec -it ${podName} -- /bin/bash -c " cluster_namespace=$dfOfferingNamespace ; ceph-mon $extractMonmap ;  monmaptool --print /tmp/monmap ; monmaptool /tmp/monmap --rm ${mons[1]} ;  monmaptool /tmp/monmap --rm ${mons[2]} ; monmaptool /tmp/monmap --rm ${mons[3]} ; monmaptool /tmp/monmap --add ${mons[1]} ${workerIps[${mons[1]}]} ; monmaptool /tmp/monmap --add ${mons[2]} ${workerIps[${mons[2]}]} ; monmaptool /tmp/monmap --add ${mons[3]} ${workerIps[${mons[3]}]} ; sleep 2 ; ceph-mon $injectMonmap ; monmaptool --print /tmp/monmap ; sleep 2"
 
     sleep 5
 
@@ -297,6 +301,7 @@ applyOsds() {
   do
     # ownerReference gets added after starting rook-ceph-operator
     cat <<< $(jq 'del(.metadata .ownerReferences)' $entry) > $entry
+    sed -i 's/openshift-storage/'${dfOfferingNamespace}'/g' $entry
     kubectl apply -f $entry
   done
 
@@ -310,6 +315,7 @@ applyStorageConsumers() {
   for entry in $consumers
   do
     echo -e "${Cyan}Applying StorageConsumer: ${EndColor}"$entry
+    sed -i 's/openshift-storage/'${dfOfferingNamespace}'/g' $backupDirectoryName/storageconsumers/$entry
     kubectl apply -f $backupDirectoryName/storageconsumers/$entry
     sleep 5
 
@@ -323,10 +329,10 @@ applyStorageConsumers() {
 applyStorageClassClaim() {
 
   echo -e "\n${Cyan}Applying StorageClassClaims${EndColor}"
-  storageConsumers=( $(kubectl get storageConsumers -n openshift-storage --no-headers | awk '{print $1}') )
+  storageConsumers=( $(kubectl get storageConsumers --no-headers | awk '{print $1}') )
   for storageConsumer in ${storageConsumers[@]}
   do
-    newUID=$(kubectl get storageconsumer ${storageConsumer} -n openshift-storage -ojson | jq -r '.metadata .uid')
+    newUID=$(kubectl get storageconsumer ${storageConsumer} -ojson | jq -r '.metadata .uid')
     oldUID=$(jq -r '.metadata .uid' $backupDirectoryName/storageconsumers/${storageConsumer}.json)
     sed -i 's/'${oldUID}'/'${newUID}'/g' $backupDirectoryName/storageclassclaims/storageclassclaims.json
     sed -i 's/'${oldUID}'/'${newUID}'/g' $backupDirectoryName/cephclients/cephclients.json
@@ -348,6 +354,8 @@ applyStorageClassClaim() {
     sed -i 's/'${oldClaimName}'/'${newClaimName}'/g' $backupDirectoryName/storageclassclaims/storageclassclaims.json
     sed -i 's/'${oldClaimName}'/'${newClaimName}'/g' $backupDirectoryName/cephclients/cephclients.json
   done
+  
+  sed -i 's/openshift-storage/'${dfOfferingNamespace}'/g' $backupDirectoryName/storageclassclaims/storageclassclaims.json
 
   sed -i 's/StorageClassClaim/StorageClassRequest/g' $backupDirectoryName/storageclassclaims/storageclassclaims.json
   sed -i 's/StorageClassClaim/StorageClassRequest/g' $backupDirectoryName/cephclients/cephclients.json #kind
@@ -357,11 +365,11 @@ applyStorageClassClaim() {
   kubectl apply -f $backupDirectoryName/storageclassclaims/storageclassclaims.json
   sleep 5
 
-  storageclassrequest=( $(kubectl get storageclassrequest -n openshift-storage --no-headers | awk '{print $1}') )
-  for storageclassrequest in ${storageclassrequest[@]}
+  storageclassrequests=( $(kubectl get storageclassrequest --no-headers | awk '{print $1}') )
+  for storageclassrequest in ${storageclassrequests[@]}
   do
     status=$(jq '.items[] | select(.metadata .name == "'${storageclassrequest}'") | .status' $backupDirectoryName/storageclassclaims/storageclassclaims.json)
-    kubectl patch --subresource=status storageclassrequest ${storageclassrequest} -n openshift-storage --type=merge --patch "{\"status\": ${status} }"
+    kubectl patch --subresource=status storageclassrequest ${storageclassrequest} --type=merge --patch "{\"status\": ${status} }"
   done
 }
 
@@ -369,22 +377,24 @@ applyCephClients() {
 
   echo -e "${Cyan}Applying CephClients${EndColor}"
 
-  storageclassrequest=( $(kubectl get storageclassrequest -n openshift-storage --no-headers | awk '{print $1}') )
-  for storageclassrequest in ${storageclassrequest[@]}
+  storageclassrequests=( $(kubectl get storageclassrequest --no-headers | awk '{print $1}') )
+  for storageclassrequest in ${storageclassrequests[@]}
   do
     oldUID=`jq -r --arg scc $storageclassrequest '.items[] .metadata .ownerReferences[0] | select( .name==$scc) | .uid' $backupDirectoryName/cephclients/cephclients.json | awk '{print $1; exit}'`
-    newUID=`kubectl get storageclassrequest $storageclassrequest -n openshift-storage -ojson | jq -r '.metadata .uid'`
+    newUID=`kubectl get storageclassrequest $storageclassrequest -ojson | jq -r '.metadata .uid'`
     sed -i 's/'${oldUID}'/'${newUID}'/g' $backupDirectoryName/cephclients/cephclients.json
   done
+
+  sed -i 's/openshift-storage/'${dfOfferingNamespace}'/g' $backupDirectoryName/cephclients/cephclients.json
 
   kubectl apply -f $backupDirectoryName/cephclients/cephclients.json
   sleep 5
 
-  cephclients=( $(kubectl get cephclient -n openshift-storage --no-headers | awk '{print $1}') )
+  cephclients=( $(kubectl get cephclient --no-headers | awk '{print $1}') )
   for cephclient in ${cephclients[@]}
   do
     status=$(jq '.items[] | select(.metadata .name == "'${cephclient}'") | .status' $backupDirectoryName/cephclients/cephclients.json)
-    kubectl patch --subresource=status cephclient ${cephclient} -n openshift-storage --type=merge --patch "{\"status\": ${status} }"
+    kubectl patch --subresource=status cephclient ${cephclient} --type=merge --patch "{\"status\": ${status} }"
   done
 }
 
