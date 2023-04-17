@@ -119,29 +119,29 @@ spec:
   grpcPodConfig:
     securityContextConfig: legacy
   sourceType: grpc
-  image: quay.io/rhceph-dev/ocs-registry:4.13.0-130
+  image: quay.io/rhceph-dev/ocs-registry:4.13.0-164
   displayName: OpenShift Data Foundation Client Operator
   publisher: Red Hat
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: ocs-client-ns
+  name: fusion-storage
 ---
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
   name: ocs-client-operatorgroup
-  namespace: ocs-client-ns
+  namespace: fusion-storage
 spec:
   targetNamespaces:
-    - ocs-client-ns
+    - fusion-storage
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   name: ocs-client-operator
-  namespace: ocs-client-ns
+  namespace: fusion-storage
 spec:
   channel: stable-4.13
   installPlanApproval: Automatic
@@ -155,7 +155,7 @@ checkOperatorCSV() {
 
   while true
   do
-    csvStatus=$(kubectl get csv -n ${operatorNamespace} $(kubectl get csv -n ${operatorNamespace}| grep ocs-client-operator | awk '{print $1;exit}') -oyaml | yq '.status .phase')
+    csvStatus=$(kubectl get csv -n ${clientOperatorNamespace} $(kubectl get csv -n ${clientOperatorNamespace}| grep ocs-client-operator | awk '{print $1;exit}') -oyaml | yq '.status .phase')
     echo -e "${Blue}Waiting for ocs-client-operator CSV to come to Succeeded phase, current CSV Status is ${EndColor}"$csvStatus
 
     if [[ $csvStatus == *"Succeeded"* ]]
@@ -173,15 +173,15 @@ createStorageClient() {
   onBoardingTicket=$(yq '.items[].spec.externalStorage.onboardingTicket' $backupDirectoryName/storagecluster.yaml)
   storageProviderEndpoint=$1
 
-  yq eval -i '.metadata .name="'${storageClientName}'" | .metadata .namespace="'${operatorNamespace}'" | .spec .onboardingTicket="'${onBoardingTicket}'" | .spec .storageProviderEndpoint = "'${storageProviderEndpoint}'" ' storageClient.yaml
+  yq eval -i '.metadata .name="'${storageClientName}'" | .metadata .namespace="'${clientOperatorNamespace}'" | .spec .onboardingTicket="'${onBoardingTicket}'" | .spec .storageProviderEndpoint = "'${storageProviderEndpoint}'" ' storageClient.yaml
   kubectl apply -f storageClient.yaml
-  kubectl patch --subresource=status storageclient ${storageClientName} -n ${operatorNamespace} --type=merge --patch '{"status":{"id":"'${id}'", "phase": "Onboarding"}}'
+  kubectl patch --subresource=status storageclient ${storageClientName} -n ${clientOperatorNamespace} --type=merge --patch '{"status":{"id":"'${id}'", "phase": "Onboarding"}}'
 }
 
 checkStorageClient() {
   while true
   do
-    clientStatus=$(kubectl get storageclient ${storageClientName} -n ${operatorNamespace} -oyaml | yq '.status .phase')
+    clientStatus=$(kubectl get storageclient ${storageClientName} -n ${clientOperatorNamespace} -oyaml | yq '.status .phase')
     echo -e "${Blue}Waiting for storageclient to come in Connected phase, current Stauts is ${EndColor}"$clientStatus
     if [[ $clientStatus == *"Connected"* ]]
     then
@@ -193,18 +193,18 @@ checkStorageClient() {
 
 applyStorageClassClaim() {
   echo -e "\n${Cyan}Applying storageClassClaim from backup${EndColor}"
-  yq eval -i '.items[].spec +={"storageClient":{"name":"'${storageClientName}'","namespace":"'${operatorNamespace}'"}}' $backupDirectoryName/storageclassclaim.yaml
+  yq eval -i '.items[].spec +={"storageClient":{"name":"'${storageClientName}'","namespace":"'${clientOperatorNamespace}'"}}' $backupDirectoryName/storageclassclaim.yaml
   kubectl apply -f $backupDirectoryName/storageclassclaim.yaml
 }
 
 checkStorageClassClaim() {
   while true
   do
-    claimNameOne=$(kubectl get storageclassclaim -n ${operatorNamespace} --no-headers | awk '{print $1}' | awk 'FNR == 1')
-    claimStatusOne=$(kubectl get storageclassclaim -n ${operatorNamespace} ${claimNameOne} -oyaml | yq '.status .phase')
+    claimNameOne=$(kubectl get storageclassclaim -n ${clientOperatorNamespace} --no-headers | awk '{print $1}' | awk 'FNR == 1')
+    claimStatusOne=$(kubectl get storageclassclaim -n ${clientOperatorNamespace} ${claimNameOne} -oyaml | yq '.status .phase')
 
-    claimNameTwo=$(kubectl get storageclassclaim -n ${operatorNamespace} --no-headers | awk '{print $1}' | awk 'FNR == 2')
-    claimStatusTwo=$(kubectl get storageclassclaim -n ${operatorNamespace} ${claimNameTwo} -oyaml | yq '.status .phase')
+    claimNameTwo=$(kubectl get storageclassclaim -n ${clientOperatorNamespace} --no-headers | awk '{print $1}' | awk 'FNR == 2')
+    claimStatusTwo=$(kubectl get storageclassclaim -n ${clientOperatorNamespace} ${claimNameTwo} -oyaml | yq '.status .phase')
 
     echo -e "${Blue}Waiting for storageClassClaim ${EndColor}"${claimNameOne}" ${Blue}to come to Ready phase, current phase is ${EndColor}"$claimStatusOne
     echo -e "${Blue}Waiting for storageClassClaim ${EndColor}"${claimNameTwo}" ${Blue}to come to Ready phase, current phase is ${EndColor}"$claimStatusTwo
@@ -219,10 +219,10 @@ checkStorageClassClaim() {
 patchRBDPV() {
   kubectl get sc ocs-storagecluster-ceph-rbd -oyaml > $backupDirectoryName/ocs-storagecluster-ceph-rbd.yaml
 
-  annotationProvisionedBy="${operatorNamespace}.rbd.csi.ceph.com"
+  annotationProvisionedBy="${clientOperatorNamespace}.rbd.csi.ceph.com"
   controllerExpandSecretRefNamespace=$(yq '.parameters ."csi.storage.k8s.io/controller-expand-secret-namespace"' $backupDirectoryName/ocs-storagecluster-ceph-rbd.yaml)
   controllerExpandSecretRefName=$(yq '.parameters ."csi.storage.k8s.io/controller-expand-secret-name"' $backupDirectoryName/ocs-storagecluster-ceph-rbd.yaml)
-  csiDriver="${operatorNamespace}.rbd.csi.ceph.com"
+  csiDriver="${clientOperatorNamespace}.rbd.csi.ceph.com"
   nodeStageSecretNamespace=$(yq '.parameters ."csi.storage.k8s.io/node-stage-secret-namespace"' $backupDirectoryName/ocs-storagecluster-ceph-rbd.yaml)
   nodeStageSecretName=$(yq '.parameters ."csi.storage.k8s.io/node-stage-secret-name"' $backupDirectoryName/ocs-storagecluster-ceph-rbd.yaml)
   provisionerSecretNamespace=$(yq '.parameters ."csi.storage.k8s.io/provisioner-secret-namespace"' $backupDirectoryName/ocs-storagecluster-ceph-rbd.yaml)
@@ -257,10 +257,10 @@ patchRBDPV() {
 patchFSPV() {
   kubectl get sc ocs-storagecluster-cephfs -oyaml > $backupDirectoryName/ocs-storagecluster-cephfs.yaml
 
-  annotationProvisionedBy="${operatorNamespace}.cephfs.csi.ceph.com"
+  annotationProvisionedBy="${clientOperatorNamespace}.cephfs.csi.ceph.com"
   controllerExpandSecretRefNamespace=$(yq '.parameters ."csi.storage.k8s.io/controller-expand-secret-namespace"' $backupDirectoryName/ocs-storagecluster-cephfs.yaml)
   controllerExpandSecretRefName=$(yq '.parameters ."csi.storage.k8s.io/controller-expand-secret-name"' $backupDirectoryName/ocs-storagecluster-cephfs.yaml)
-  csiDriver="${operatorNamespace}.cephfs.csi.ceph.com"
+  csiDriver="${clientOperatorNamespace}.cephfs.csi.ceph.com"
   nodeStageSecretNamespace=$(yq '.parameters ."csi.storage.k8s.io/node-stage-secret-namespace"' $backupDirectoryName/ocs-storagecluster-cephfs.yaml)
   nodeStageSecretName=$(yq '.parameters ."csi.storage.k8s.io/node-stage-secret-name"' $backupDirectoryName/ocs-storagecluster-cephfs.yaml)
   clusterID=$(yq '.parameters .clusterID' $backupDirectoryName/ocs-storagecluster-cephfs.yaml)
@@ -293,7 +293,7 @@ patchFSPV() {
 patchRBDPVC() {
   pvcFilenames=`ls  $backupDirectoryName/pvc/rbd/`
   for pvc in $pvcFilenames; do
-    sed -i 's/openshift-storage/'${operatorNamespace}'/g' $backupDirectoryName/pvc/rbd/$pvc
+    sed -i 's/openshift-storage/'${clientOperatorNamespace}'/g' $backupDirectoryName/pvc/rbd/$pvc
     kubectl apply -f $backupDirectoryName/pvc/rbd/$pvc
   done
 }
@@ -301,13 +301,10 @@ patchRBDPVC() {
 patchFSPVC() {
   pvcFilenames=`ls  $backupDirectoryName/pvc/cephfs/`
   for pvc in $pvcFilenames; do
-    sed -i 's/openshift-storage/'${operatorNamespace}'/g' $backupDirectoryName/pvc/cephfs/$pvc
+    sed -i 's/openshift-storage/'${clientOperatorNamespace}'/g' $backupDirectoryName/pvc/cephfs/$pvc
     kubectl apply -f $backupDirectoryName/pvc/cephfs/$pvc
   done
 }
-
-operatorNamespace="ocs-client-ns"
-storageClientName="storageclient"
 
 backupDirectoryName=backup_consumer/${3}
 
@@ -332,12 +329,12 @@ createOCSClientOperator
 checkOperatorCSV
 
 #scale down the operator
-kubectl scale deployments $(kubectl get deployments -n $operatorNamespace | grep ocs-client-operator | awk '{print $1;exit}') -n $operatorNamespace --replicas 0
+kubectl scale deployments $(kubectl get deployments -n $clientOperatorNamespace | grep ocs-client-operator | awk '{print $1;exit}') -n $clientOperatorNamespace --replicas 0
 
 createStorageClient $1 $2
 
 #scale up the operator
-kubectl scale deployments $(kubectl get deployments -n $operatorNamespace | grep ocs-client-operator | awk '{print $1;exit}') -n $operatorNamespace --replicas 1
+kubectl scale deployments $(kubectl get deployments -n $clientOperatorNamespace | grep ocs-client-operator | awk '{print $1;exit}') -n $clientOperatorNamespace --replicas 1
 
 checkStorageClient
 

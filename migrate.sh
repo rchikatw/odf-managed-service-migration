@@ -90,11 +90,11 @@ unset storageConsumerUID
 declare -A storageConsumerUID
 
 consumers=`ls  backup/storageconsumers`
-storageProviderEndpoint=$(kubectl get StorageCluster ocs-storagecluster -n openshift-storage -o json | jq -r '.status .storageProviderEndpoint')
+storageProviderEndpoint=$(kubectl get StorageCluster ocs-storagecluster -n ${dfOfferingNamespace} -o json | jq -r '.status .storageProviderEndpoint')
 for entry in $consumers
 do
   consumerName=$(cat backup/storageconsumers/$entry | jq -r '.metadata .name')
-  uid=$(kubectl get storageconsumer ${consumerName} -n openshift-storage -o json | jq -r '.metadata .uid')
+  uid=$(kubectl get storageconsumer ${consumerName} -n ${dfOfferingNamespace} -o json | jq -r '.metadata .uid')
   storageConsumerUID[$consumerName]=$uid
 done
 
@@ -119,7 +119,7 @@ serviceId=$(rosa list services | grep ${clusterName} | awk '{print $1}')
 echo -e "\n${Cyan}Deletion of Service is started${EndColor}"
 
 rosa delete service --id=$serviceId -y
-
+sleep 60
 while true
 do
 
