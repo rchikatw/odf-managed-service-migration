@@ -10,10 +10,11 @@ usage() {
     1. A ROSA cluster with ODF MS Consumer addon installed.
     2. kubectl, ocm and jq installed.
 
-  USAGE: "./deatachConsumerAddon.sh <clusterID> [env for consumer addon [-dev]/[-qe]]"
+  USAGE: "./deatachConsumerAddon.sh <clusterID> [env for consumer addon [-dev]/[-qe]] [-d]"
 
   Note:
-  1. Env for consumer addon by default is production, use -dev/-qe for testing
+  1. Use -d when not using ocm-backplane
+  2. Env for consumer addon by default is production, use -dev/-qe for testing
 
   To install kubectl, ocm & jq refer:
   1. kubectl: ${link[kubectl]}
@@ -23,15 +24,22 @@ usage() {
 EOF
 }
 
+if [ -z "${1}" ]; then
+  usage
+  exit 1
+fi
+
 if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   usage
-  exit 0
+  exit 1
 fi
 
 if [[ "${2}" != "-dev" ]] && [[ "${2}" != "-qe" ]] && [[ "${2}" != "" ]]; then
   usage
-  exit 0
+  exit 1
 fi
+
+loginCluster $1 $3
 
 echo -e "${Green}Deatach addon script started${EndColor}"
 
@@ -57,7 +65,6 @@ ocm delete /api/clusters_mgmt/v1/clusters/$1/addons/ocs-consumer$2
 
 while true
 do
-
   state=$(ocm get /api/clusters_mgmt/v1/clusters/$1/addons | jq  -r '. | select(.items != null) | .items[] | select(.id == "ocs-consumer'$2'") | .state')
 
   echo -e "${Blue}waiting for addon to be uninstalled current state is ${EndColor}"$state
@@ -91,6 +98,7 @@ kubectl delete subs addon-ocs-consumer$2 -n openshift-storage
 
 echo -e "${Cyan}Patching the managedocs to remove finalizers${EndColor}"
 kubectl patch managedocs managedocs -n openshift-storage -p '{"metadata":{"finalizers":null}}' --type=merge
+
 echo -e "\n${Cyan}Deleting managedocs CR${EndColor}"
 kubectl delete managedocs managedocs -n openshift-storage --cascade='orphan'
 

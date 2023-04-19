@@ -26,6 +26,8 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
+loginCluster $1 $2
+
 echo -e "${Green}Update EBS volume tags started${EndColor}"
 
 pvFilenames=`ls  backup/persistentvolumes/`

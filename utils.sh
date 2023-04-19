@@ -24,11 +24,13 @@ BoldCyan='\033[1;36m'
 Blue='\033[1;34m'          # Blue
 
 loginCluster() {
-  if [[ "${1}" == "-d" ]];
+  if [[ "${2}" == "-d" ]];
   then
-  storeKubeconfigAndLoginCluster $2
+    storeKubeconfigAndLoginCluster $1
+  elif [ -z "${2}" ];then
+    ocm-backplane login $1
   else
-  ocm-backplane login $1
+    echo -e "\n${Red}Invalid Option ${EndColor}"$1
   fi
 }
 
@@ -43,7 +45,7 @@ storeKubeconfigAndLoginCluster() {
     export KUBECONFIG=$(readlink -f kubeconfig/${1})
   else
     echo $response | jq .reason | sed "s/\"//g"
-    exit
+    exit 1
   fi
 }
 
@@ -52,6 +54,7 @@ validate() {
   do
     if !(hash $var 2>/dev/null); then
       echo -e "${Red}$var is not installed, Please install and re-run the script again, To download $var cli, refer "${EndColor} "${Cyan}${link[$var]}${EndColor}"
+      exit 1
     fi
   done
 }
