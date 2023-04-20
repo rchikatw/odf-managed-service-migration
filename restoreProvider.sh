@@ -25,8 +25,16 @@ EOF
 
 if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   usage
-  exit 0
+  exit 1
 fi
+
+
+if [ -z "${2}" ]; then
+  usage
+  exit 1
+fi
+
+loginCluster $1 $2
 
 unset workerNodeNames
 unset workerIps
@@ -43,8 +51,7 @@ validateClusterRequirement() {
     echo -e "${Green}Namespace exists!"
   else
     echo -e "${Red}Namespace does not exist! Exiting..${EndColor}"
-    cleanup
-    exit
+    exit 1
   fi
 
   echo -e "${Cyan}Switching to the ${dfOfferingNamespace} namespace${EndColor}"
@@ -107,6 +114,7 @@ applyPersistentVolumes() {
     if [[ $namespace == "openshift-storage" ]]
     then
         # claim gets added after applying pvc
+        sed -i 's/gp2/gp3/g' $backupDirectoryName/persistentvolumes/$pv
         cat <<< $(jq 'del(.spec .claimRef)' $backupDirectoryName/persistentvolumes/$pv ) > $backupDirectoryName/persistentvolumes/$pv
         kubectl apply -f $backupDirectoryName/persistentvolumes/$pv
     fi
@@ -121,6 +129,7 @@ applyPersistentVolumeClaims() {
   for pvc in $pvcFilenames
   do
     # replace with cephcluster uid
+    sed -i 's/gp2/gp3/g' $pvc
     cat <<< $(jq --arg uid $uid '.metadata .ownerReferences[0] .uid=$uid' $pvc) > $pvc
     sed -i 's/openshift-storage/'${dfOfferingNamespace}'/g' $pvc
     kubectl apply -f $pvc
