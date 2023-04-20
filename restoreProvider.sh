@@ -25,8 +25,16 @@ EOF
 
 if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   usage
-  exit 0
+  exit 1
 fi
+
+
+if [ -z "${2}" ]; then
+  usage
+  exit 1
+fi
+
+loginCluster $1 $2
 
 unset workerNodeNames
 unset workerIps
@@ -43,8 +51,7 @@ validateClusterRequirement() {
     echo -e "${Green}Namespace exists!"
   else
     echo -e "${Red}Namespace does not exist! Exiting..${EndColor}"
-    cleanup
-    exit
+    exit 1
   fi
 
   echo -e "${Cyan}Switching to the ${dfOfferingNamespace} namespace${EndColor}"

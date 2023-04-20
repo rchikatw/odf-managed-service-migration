@@ -11,14 +11,20 @@ usage() {
     2. Consumer Addon is deatached
     3. OCP version of the cluster should be >= 4.11
 
-  USAGE: "./migrateConsumer.sh <Consumer Cluster ID>"
+  USAGE: "./migrateConsumer.sh <storageProviderEndpoint> <storageConsumerUID> <consumerClusterID> [-d]"
+
+  Note:
+  1. Use -d when not using ocm-backplane
+  2. StorageProviderEndpoint of the new Provider
+  3. StorageConsumerUID from the new Provider
+  4. OCM consumerClusterID
 
 EOF
 }
 
 if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   usage
-  exit 0
+  exit 1
 fi
 
 backupVolumes() {
@@ -119,7 +125,7 @@ spec:
   grpcPodConfig:
     securityContextConfig: legacy
   sourceType: grpc
-  image: quay.io/rhceph-dev/ocs-registry:4.13.0-164
+  image: quay.io/rhceph-dev/ocs-registry:4.13.0-168
   displayName: OpenShift Data Foundation Client Operator
   publisher: Red Hat
 ---
@@ -172,9 +178,11 @@ createStorageClient() {
   id=$2
   onBoardingTicket=$(yq '.items[].spec.externalStorage.onboardingTicket' $backupDirectoryName/storagecluster.yaml)
   storageProviderEndpoint=$1
-
-  yq eval -i '.metadata .name="'${storageClientName}'" | .metadata .namespace="'${clientOperatorNamespace}'" | .spec .onboardingTicket="'${onBoardingTicket}'" | .spec .storageProviderEndpoint = "'${storageProviderEndpoint}'" ' storageClient.yaml
-  kubectl apply -f storageClient.yaml
+  
+  cp storageClient.yaml storageClient${2}.yaml
+  yq eval -i '.metadata .name="'${storageClientName}'" | .metadata .namespace="'${clientOperatorNamespace}'" | .spec .onboardingTicket="'${onBoardingTicket}'" | .spec .storageProviderEndpoint = "'${storageProviderEndpoint}'" ' storageClient${2}.yaml
+  kubectl apply -f storageClient${2}.yaml
+  rm storageClient${2}.yaml
   kubectl patch --subresource=status storageclient ${storageClientName} -n ${clientOperatorNamespace} --type=merge --patch '{"status":{"id":"'${id}'", "phase": "Onboarding"}}'
 }
 
@@ -305,6 +313,13 @@ patchFSPVC() {
     kubectl apply -f $backupDirectoryName/pvc/cephfs/$pvc
   done
 }
+
+if [ -z "${1}" ] || [ -z "${2}" ] || [ -z "${3}" ]; then
+  usage
+  exit 1
+fi
+
+loginCluster $3 $4
 
 backupDirectoryName=backup_consumer/${3}
 
