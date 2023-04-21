@@ -10,15 +10,11 @@ usage() {
     1. A new ROSA cluster with ODF MS Provider addon installed.
     2. Backup of resources from the old cluster.
     3. kubectl, yq and jq installed.
+    4. kubectl: ${link[kubectl]}
+    5. yq: ${link[yq]}
+    6. jq: ${link[jq]}
 
-  USAGE: "./restoreProvider.sh"
-
-  Please note that we need to provide the absolute path to kubeconfig and s3 URL in ' '
-
-  To install kubectl, jq or yq Refer:
-    1. kubectl: ${link[kubectl]}
-    2. yq: ${link[yq]}
-    3. jq: ${link[jq]}
+  USAGE: "./restoreProvider.sh <newClusterID> [-d]"
 
 EOF
 }

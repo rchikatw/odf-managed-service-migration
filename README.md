@@ -3,7 +3,6 @@
 - freeEBSVolumes.sh -> Scale down the osd and mon pods on the provider cluster.
 - restoreProvider.sh -> Restore a ODF MS provider into a new cluster.
 - deatchConsumerAddon.sh -> Deatch the ODF MS consumer addon from hive.
-- restoreConsumer.sh -> Update the StorageConsumer id and StorageProviderEndpoint in the StorageCluster CR.
 - updateEBSVolumes.sh -> Update the aws ebs volume tags for osd's and mon's from provider cluster and change the storageClass to gp3.
 - migrateConsumer.sh -> Migrates the from old cluster to new cluster.
 - migrate.sh -> Will run all necessary script to migrate cluster.
@@ -11,10 +10,9 @@
 ---
 ## Prerequisite
 ### Have the following cli tools installed:
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [curl](https://curl.se/download.html)
-- [jq](https://www.cyberithub.com/how-to-install-jq-json-processor-on-rhel-centos-7-8/)
-- [yq](https://www.cyberithub.com/how-to-install-yq-command-line-tool-on-linux-in-5-easy-steps/)
+- [kubectl](https://kubernetes.io/docs/tasks/tools/) > 1.24
+- [jq](https://www.cyberithub.com/how-to-install-jq-json-processor-on-rhel-centos-7-8/) >= 1.6
+- [yq](https://www.cyberithub.com/how-to-install-yq-command-line-tool-on-linux-in-5-easy-steps/) >= 4.3
 - [ocm](https://console.redhat.com/openshift/downloads)
 - [aws](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
 - [ocm-backplane](https://gitlab.cee.redhat.com/service/backplane-cli)
@@ -31,13 +29,22 @@
 ---
 ## Steps to migrate provider
 - Clone the github repository
-- Run script using ./migrate.sh -d [env for consumer addon [-dev]/[-qe]], When you have dev addon installed ex: 
+- Run script using ./migrate.sh -provider <oldClusterID> <newClusterID> -d [env for consumer addon [-dev]/[-qe]], When you have dev addon installed ex: 
 ```
- ./migrate.sh -d -dev
+ ./migrate.sh -provider <oldClusterID> <newClusterID> -d -dev
+```
+- If you dont pass env for addon the script will consider as prod addon.
+- If we have access to ocm-backplane, we do not require the -d option, we can run the script as:
+```
+    ./migrate.sh -provider <oldClusterID> <newClusterID>
+```
+- After the provider migration completed, The script will print the commands to run for each consumer.
+- Run them one after the other or in separate terminals to speed up the migration. The template for consumer migration command would be:
+```
+  ./migrate.sh -consumer <ConsumerClusterID> <StorageProviderEndpoint> <new UID for storageconsumer from provider> [-d] [-dev/-qe]
 ```
 
-- Script will require cluster id for Old/Backup cluster and restore/migrated cluster.
-
+- After completion of the Consumer script, scale up the applications/deployments on the consumer side and verify that we have the expected data.
 ---
 > **Note** Running this script requires around an hour of downtime for cluster.
 

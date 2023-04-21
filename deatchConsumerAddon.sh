@@ -8,18 +8,15 @@ usage() {
 
   Requirements:
     1. A ROSA cluster with ODF MS Consumer addon installed.
-    2. kubectl, ocm and jq installed.
+    2. kubectl: ${link[kubectl]}
+    3. jq: ${link[jq]}
+    4. ocm: ${link[ocm]}
 
-  USAGE: "./deatachConsumerAddon.sh <clusterID> [env for consumer addon [-dev]/[-qe]] [-d]"
+  USAGE: "./deatachConsumerAddon.sh <ConsumerClusterID> [env for consumer addon [-dev]/[-qe]] [-d]"
 
   Note:
   1. Use -d when not using ocm-backplane
   2. Env for consumer addon by default is production, use -dev/-qe for testing
-
-  To install kubectl, ocm & jq refer:
-  1. kubectl: ${link[kubectl]}
-  2. jq: ${link[jq]}
-  3. ocm: ${link[ocm]}
 
 EOF
 }

@@ -10,6 +10,8 @@ usage() {
     1. All the pods/deployments using PVC should be scaled down.
     2. Consumer Addon is deatached
     3. OCP version of the cluster should be >= 4.11
+    4. kubectl: ${link[kubectl]}
+    5. yq: ${link[yq]}
 
   USAGE: "./migrateConsumer.sh <storageProviderEndpoint> <storageConsumerUID> <consumerClusterID> [-d]"
 

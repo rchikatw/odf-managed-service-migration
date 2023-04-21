@@ -7,10 +7,17 @@ usage() {
   Meta script that runs all the required script for migration.
 
   Requirements:
-    1. kubectl, ocm installed.
-    2. clusterID for the clusters
+    1. kubectl: ${link[kubectl]}
+    2. yq: ${link[yq]}
+    3. jq: ${link[jq]}
+    4. ROSA: ${link[rosa]}
+    5. OCM: ${link[ocm]}
+    6. aws: ${link[aws]}
+    7. clusterID for the clusters
 
-  USAGE: "./migrate.sh [-d] [env for consumer addon [-dev]/[-qe]]"
+  USAGE: 
+  provider: "./migrate.sh -provider <oldClusterID> <newClusterID> [-d] [env for consumer addon [-dev]/[-qe]]"
+  consumer: "./migrate.sh -consumer <consumerClusterID> <storageProviderEndpoint> <storageConsumerUID from old provider> [-d] [env for consumer addon [-dev]/[-qe]]"
 
   Note:
   1. Use -d when not using ocm-backplane
@@ -67,9 +74,9 @@ providerMigration() {
   fi
 
   if [[ "${3}" == "-d" ]]; then
-    validate "kubectl" "curl" "ocm" "jq" "yq" "aws" "rosa"
+    validate "kubectl" "ocm" "jq" "yq" "aws" "rosa"
   else
-    validate "ocm-backplane" "kubectl" "curl" "ocm" "jq" "yq" "aws" "rosa"
+    validate "ocm-backplane" "kubectl" "ocm" "jq" "yq" "aws" "rosa"
   fi
 
   if [[ "${4}" != "-dev" ]] && [[ "${4}" != "-qe" ]] && [[ "${4}" != "" ]]; then
@@ -142,9 +149,9 @@ consumerMigration() {
   fi
 
   if [[ "${4}" == "-d" ]]; then
-    validate "kubectl" "curl" "ocm" "jq" "yq"
+    validate "kubectl" "ocm" "jq" "yq"
   else
-    validate "ocm-backplane" "kubectl" "curl" "ocm" "jq" "yq"
+    validate "ocm-backplane" "kubectl" "ocm" "jq" "yq"
   fi
 
   if [[ "${5}" != "-dev" ]] && [[ "${5}" != "-qe" ]] && [[ "${5}" != "" ]]; then
