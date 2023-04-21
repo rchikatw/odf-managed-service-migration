@@ -35,7 +35,7 @@ namespaceKey="kubernetes.io/created-for/pvc/namespace"
 for pv in $pvFilenames
 do
   volumeID=$(cat backup/persistentvolumes/$pv | jq -r '.spec .awsElasticBlockStore .volumeID |  split("/") | .[-1]')
-  echo -e "Updating tags for volume Id "$volumeID
+  echo -e "${Cyan}Updating tags and storageClass for volume Id ${EndColor}"$volumeID
   region=$(cat backup/persistentvolumes/$pv | jq -r '.metadata .labels ."topology.kubernetes.io/region"')
   keyName=$(aws ec2 describe-volumes --volume-id $volumeID --filters Name=tag:kubernetes.io/created-for/pvc/namespace,Values=openshift-storage  --region $region --query "Volumes[*].Tags" | jq .[] | jq -r '.[]| select (.Value == "owned")|.Key')
   backupKeyName=${keyName##*/}
@@ -52,6 +52,15 @@ do
 
   aws ec2 delete-tags --tags Key=$namespaceKey --resources $volumeID --region $region
   aws ec2 create-tags --tags Key=$namespaceKey,Value=$dfOfferingNamespace --resources $volumeID --region $region
+  
+  #Updaate the volume type to gp3
+  pvName="${pv%.*}"
+  claimName=$(kubectl get pv ${pvName} -ojson | jq -r '.spec .claimRef .name')
+  if [[ "$claimName" == *"rook-ceph-mon"* ]]; then
+    aws ec2 modify-volume --volume-type gp3 --volume-id $volumeID --region $region
+  elif [[ "$claimName" == *"default"* ]]; then
+    aws ec2 modify-volume --volume-type gp3 --iops 12000 --throughput 250 --volume-id $volumeID --region $region
+  fi
 done
 
 echo -e "${Green}Finished Updating EBS volume tags ${EndColor}"

@@ -85,7 +85,7 @@ providerMigration() {
 
   sh ./restoreProvider.sh $2 $3 || exit 1
 
-  sh ./updateEBSVolumeTags.sh $2 $3 || exit 1
+  sh ./updateEBSVolumes.sh $2 $3 || exit 1
 
   echo -e "\n${Cyan}Deleting the old/backup cluster${EndColor}"
   clusterName=$(ocm list clusters | grep $1 | awk '{print $2}')

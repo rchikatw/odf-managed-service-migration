@@ -114,6 +114,7 @@ applyPersistentVolumes() {
     if [[ $namespace == "openshift-storage" ]]
     then
         # claim gets added after applying pvc
+        sed -i 's/gp2/gp3/g' $backupDirectoryName/persistentvolumes/$pv
         cat <<< $(jq 'del(.spec .claimRef)' $backupDirectoryName/persistentvolumes/$pv ) > $backupDirectoryName/persistentvolumes/$pv
         kubectl apply -f $backupDirectoryName/persistentvolumes/$pv
     fi
@@ -128,6 +129,7 @@ applyPersistentVolumeClaims() {
   for pvc in $pvcFilenames
   do
     # replace with cephcluster uid
+    sed -i 's/gp2/gp3/g' $pvc
     cat <<< $(jq --arg uid $uid '.metadata .ownerReferences[0] .uid=$uid' $pvc) > $pvc
     sed -i 's/openshift-storage/'${dfOfferingNamespace}'/g' $pvc
     kubectl apply -f $pvc
