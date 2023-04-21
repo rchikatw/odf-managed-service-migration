@@ -7,14 +7,11 @@ usage() {
   Takes the backup of required resources for restoring/migrating provider cluster.
 
   Requirements:
-    1. kubectl, ocm installed.
-    2. clusterID for the cluster
+    1. kubectl: ${link[kubectl]}
+    2. OCM: ${link[ocm]}
+    2. clusterID for the Old cluster
 
-  USAGE: "./backupResources.sh"
-
-  To install kubectl & ocm refer:
-  1. kubectl: ${link[kubectl]}
-  2. ocm: ${link[ocm]}
+  USAGE: "./backupResources.sh <oldClusterID> [-d]"
 
 EOF
 }

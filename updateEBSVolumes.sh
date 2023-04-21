@@ -10,13 +10,14 @@ usage() {
     1. backup of resources from the old cluster.
     2. kubectl, AWS cli and jq installed.
     3. access to aws account from cli where volume's are available.
+    4. kubectl: ${link[kubectl]}
+    5. jq: ${link[jq]}
+    6. aws: ${link[aws]}
 
-  USAGE: "./updageEBSVolumeTags.sh"
+  USAGE: "./updageEBSVolumeTags.sh <newClusterID> -d"
 
   To install kubectl, jq & aws CLI Refer:
-  1. kubectl: ${link[kubectl]}
-  2. jq: ${link[jq]}
-  3. aws: ${link[aws]}
+
 
 EOF
 }

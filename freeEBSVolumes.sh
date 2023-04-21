@@ -7,12 +7,10 @@ usage() {
   Scale down the osd and mon pods on the provider cluster.
 
   Requirements:
-    1. kubectl installed.
+    1. ClusterId.
+    2. kubectl: ${link[kubectl]}
 
-  USAGE: "./freeEBSVolumes.sh"
-
-  To install kubectl refer:
-  1. kubectl: ${link[kubectl]}
+  USAGE: "./freeEBSVolumes.sh <oldClusterID> -d"
 
 EOF
 }

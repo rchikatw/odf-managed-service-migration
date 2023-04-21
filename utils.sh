@@ -9,7 +9,6 @@ link[ocm]="https://console.redhat.com/openshift/downloads"
 link[rosa]="https://console.redhat.com/openshift/downloads"
 link[kubectl]="https://kubernetes.io/docs/tasks/tools/"
 link[aws]="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
-link[curl]="https://curl.se/download.html"
 link[ocm-backplane]="https://gitlab.cee.redhat.com/service/backplane-cli"
 
 dfOfferingNamespace="fusion-storage"
