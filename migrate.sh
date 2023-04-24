@@ -63,6 +63,8 @@ validateConsumers() {
     fi
   done
 
+  validateKubectlVersion
+  
   echo -e "${Cyan}Validation Complete!${EndColor}"
 }
 
