@@ -18,6 +18,15 @@
 - [ocm-backplane](https://gitlab.cee.redhat.com/service/backplane-cli)
 - [rosa](https://console.redhat.com/openshift/downloads)
 
+### Configuration for New Agent/Provider
+- New ROSA cluster should be in the same VPC
+- The ROSA version for new cluster should be 4.12
+- New ROSA cluster shuld be multi-az, We don't support migration into single az clusters
+- The ManagedFusion Agent and Offering should be installed before running the migration
+- The Offering should be installed on `fusion-storage` namespace
+- New DataFoundation offering should of the same size as old Provider
+- New DataFoundation offering should have the same onBoardingValidationKey
+
 ### Cluster ID for the following cluster:
 - Backup/Old Cluster
 - Migrated/New Cluster
