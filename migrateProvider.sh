@@ -4,7 +4,7 @@ source ./utils.sh
 usage() {
   cat << EOF
 
-  Restore a ODF MS provider into a new cluster.
+  Migrate a ODF MS provider into a new cluster.
 
   Requirements:
     1. A new ROSA cluster with ODF MS Provider addon installed.
@@ -14,7 +14,7 @@ usage() {
     5. yq: ${link[yq]}
     6. jq: ${link[jq]}
 
-  USAGE: "./restoreProvider.sh <newClusterID> [-d]"
+  USAGE: "./migrateProvider.sh <newClusterID> [-d]"
 
 EOF
 }
@@ -325,8 +325,8 @@ applyStorageConsumers() {
     sleep 5
 
     status=$(jq '.status' $backupDirectoryName/storageconsumers/$entry)
-    cosnumer=${entry[0]%%.*}
-    kubectl patch --subresource=status storageconsumer ${cosnumer} --type=merge --patch "{\"status\": ${status} }"
+    consumer=${entry[0]%%.*}
+    kubectl patch --subresource=status storageconsumer ${consumer} --type=merge --patch "{\"status\": ${status} }"
   done
 
 }

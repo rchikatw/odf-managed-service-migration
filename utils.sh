@@ -13,7 +13,7 @@ link[ocm-backplane]="https://gitlab.cee.redhat.com/service/backplane-cli"
 
 dfOfferingNamespace="fusion-storage"
 clientOperatorNamespace="fusion-storage"
-storageClientName="storageclient"
+storageClientName="ocs-storageclient"
 
 Red='\033[1;31m'          # Red
 Green='\033[1;32m'        # Green
