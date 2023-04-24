@@ -407,6 +407,8 @@ echo -e "${Green}Migration of provider cluster started${EndColor}"
 
 backupDirectoryName=backup
 
+validateKubectlVersion
+
 validateClusterRequirement
 
 checkDeployerCSV

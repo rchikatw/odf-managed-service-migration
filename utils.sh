@@ -58,6 +58,19 @@ validate() {
   done
 }
 
+validateKubectlVersion() {
+  kubectl version -o json > kubedetails.json
+  clientMajor=$(cat kubedetails.json | jq -r '.clientVersion .major')
+  serverMajor=$(cat kubedetails.json | jq -r '.serverVersion .major')
+  clientMinor=$(cat kubedetails.json | jq -r '.clientVersion .minor')
+  serverMinor=$(cat kubedetails.json | jq -r '.serverVersion .minor')
+  rm kubedetails.json
+  if [[ "$clientMajor" < "1" ||  "$serverMajor" < "1" || "$clientMinor" < "24" ||  "$serverMinor" < "24" ]]; then  
+    echo -e "${Red}Error: Please update the kubectl version to >= 1.24${EndColor}"
+    exit 1
+  fi
+}
+
 cleanup() {
   # unset the arrays
   unset workerNodeNames
