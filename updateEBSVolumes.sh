@@ -38,7 +38,7 @@ do
   volumeID=$(cat backup/persistentvolumes/$pv | jq -r '.spec .awsElasticBlockStore .volumeID |  split("/") | .[-1]')
   echo -e "${Cyan}Updating tags and storageClass for volume Id ${EndColor}"$volumeID
   region=$(cat backup/persistentvolumes/$pv | jq -r '.metadata .labels ."topology.kubernetes.io/region"')
-  keyName=$(aws ec2 describe-volumes --volume-id $volumeID --filters Name=tag:kubernetes.io/created-for/pvc/namespace,Values=openshift-storage  --region $region --query "Volumes[*].Tags" | jq .[] | jq -r '.[]| select (.Value == "owned")|.Key')
+  keyName=$(aws ec2 describe-volumes --volume-id $volumeID --filters Name=tag:kubernetes.io/created-for/pvc/namespace,Values=openshift-storage  --region $region --query "Volumes[*].Tags" --output json | jq .[] | jq -r '.[]| select (.Value == "owned")|.Key')
   backupKeyName=${keyName##*/}
   aws ec2 delete-tags --tags Key=$keyName --resources $volumeID --region $region
 
@@ -46,15 +46,14 @@ do
   keyName="kubernetes.io/cluster/"$(kubectl get machineset $(kubectl get machineset -n openshift-machine-api | awk 'NR!=1 {print}' | awk '{ print $1; exit }') -n openshift-machine-api -o json | jq -r '.metadata .labels ."machine.openshift.io/cluster-api-cluster"')
   aws ec2 create-tags --tags Key=$keyName,Value=owned --resources $volumeID --region $region
 
-  nameValue=$(aws ec2 describe-volumes --volume-id $volumeID --filters Name=tag:kubernetes.io/created-for/pvc/namespace,Values=openshift-storage  --region $region --query "Volumes[*].Tags" | jq .[] | jq -r '.[]| select (.Key == "Name")|.Value')
+  nameValue=$(aws ec2 describe-volumes --volume-id $volumeID --filters Name=tag:kubernetes.io/created-for/pvc/namespace,Values=openshift-storage  --region $region --query "Volumes[*].Tags" --output json | jq .[] | jq -r '.[]| select (.Key == "Name")|.Value')
   restoreKeyName=${keyName##*/}
   restoreValue=${nameValue/$backupKeyName/$restoreKeyName}
   aws ec2 create-tags --tags Key=Name,Value=$restoreValue --resources $volumeID --region $region
 
-  aws ec2 delete-tags --tags Key=$namespaceKey --resources $volumeID --region $region
   aws ec2 create-tags --tags Key=$namespaceKey,Value=$dfOfferingNamespace --resources $volumeID --region $region
   
-  #Updaate the volume type to gp3
+  #Update the volume type to gp3
   pvName="${pv%.*}"
   claimName=$(kubectl get pv ${pvName} -ojson | jq -r '.spec .claimRef .name')
   if [[ "$claimName" == *"rook-ceph-mon"* ]]; then
@@ -65,3 +64,4 @@ do
 done
 
 echo -e "${Green}Finished Updating EBS volume tags ${EndColor}"
+

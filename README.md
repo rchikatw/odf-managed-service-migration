@@ -1,7 +1,7 @@
 ## ODF Managed Service Migration scripts.
-- backupResources.sh -> Takes the backup of required resources for restoring provider cluster or retrives it from s3 bucket.
+- backupResources.sh -> Takes the backup of required resources for migrating provider cluster.
 - freeEBSVolumes.sh -> Scale down the osd and mon pods on the provider cluster.
-- restoreProvider.sh -> Restore a ODF MS provider into a new cluster.
+- migrateProvider.sh -> Migrate a ODF MS provider into a new cluster.
 - deatchConsumerAddon.sh -> Deatch the ODF MS consumer addon from hive.
 - updateEBSVolumes.sh -> Update the aws ebs volume tags for osd's and mon's from provider cluster and change the storageClass to gp3.
 - migrateConsumer.sh -> Migrates the from old cluster to new cluster.

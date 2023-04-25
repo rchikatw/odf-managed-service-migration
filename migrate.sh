@@ -92,7 +92,7 @@ providerMigration() {
 
   sh ./freeEBSVolumes.sh $1 $3 || exit 1
 
-  sh ./restoreProvider.sh $2 $3 || exit 1
+  sh ./migrateProvider.sh $2 $3 || exit 1
 
   sh ./updateEBSVolumes.sh $2 $3 || exit 1
 
