@@ -118,44 +118,39 @@ deleteNamespace(){
 
 createOCSClientOperator() {
 cat << EOF | oc apply -f -
-apiVersion: operators.coreos.com/v1alpha1
-kind: CatalogSource
-metadata:
-  name: ocs-client-catalogsource
-  namespace: openshift-marketplace
-spec:
-  grpcPodConfig:
-    securityContextConfig: legacy
-  sourceType: grpc
-  image: quay.io/rhceph-dev/ocs-registry:4.13.0-168
-  displayName: OpenShift Data Foundation Client Operator
-  publisher: Red Hat
----
 apiVersion: v1
 kind: Namespace
 metadata:
   name: fusion-storage
 ---
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: managed-fusion-offering-catalog
+  namespace: fusion-storage
+spec:
+  sourceType: grpc
+  image: quay.io/rhceph-dev/ocs-registry:4.12.3-12
+---
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
-  name: ocs-client-operatorgroup
+  name: managed-fusion-offering-og
   namespace: fusion-storage
 spec:
-  targetNamespaces:
-    - fusion-storage
+  upgradeStrategy: Default
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
-  name: ocs-client-operator
+  name: managed-fusion-offering
   namespace: fusion-storage
 spec:
-  channel: stable-4.13
+  channel: stable-4.12
   installPlanApproval: Automatic
   name: ocs-client-operator
-  source: ocs-client-catalogsource
-  sourceNamespace: openshift-marketplace
+  source: managed-fusion-offering-catalog
+  sourceNamespace: fusion-storage
 EOF
 }
 
