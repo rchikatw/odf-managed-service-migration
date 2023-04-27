@@ -21,7 +21,7 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
-loginCluster $1 $2
+loginCluster $1 $2 $3
 
 echo -e "${Green}Backup of provider resource script started${EndColor}"
 echo -e "${Cyan}Creating required directories for backup${EndColor}"

@@ -35,14 +35,14 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
 fi
 
 validateConsumers() {
-  loginCluster $1 $2
+  loginCluster $1 $2 $oldOCMToken
 
   echo -e "\n${Cyan}Validating if all consumer clusters are above OCP 4.11 and the pods using the PVC are scaled down${EndColor}"
   consumers=( $(kubectl get storageconsumer -n openshift-storage --no-headers | awk '{print $1}') )
   for consumer in $consumers
   do
     consumerClusterID=$(ocm list clusters --columns ID,name,externalID | grep ${consumer#*-} | awk '{ print $1; exit}')
-    loginCluster "$consumerClusterID" $2
+    loginCluster "$consumerClusterID" $2 $oldOCMToken
 
     version=$(kubectl get clusterversion version -oyaml | yq '.status .desired .version')
     if [[ "$version" < "4.11" ]]; then
@@ -77,6 +77,12 @@ providerMigration() {
 
   if [[ "${3}" == "-d" ]]; then
     validate "kubectl" "ocm" "jq" "yq" "aws" "rosa"
+    echo -e "\n${BoldCyan}Enter the ocm token for the old Provider and Consumers: ${EndColor}"
+    read oldOCM
+    oldOCMToken=$oldOCM
+    echo -e "\n${BoldCyan}Enter the ocm token for the new Provider Agent: ${EndColor}"
+    read newOCM
+    newOCMToken=$newOCM
   else
     validate "ocm-backplane" "kubectl" "ocm" "jq" "yq" "aws" "rosa"
   fi
@@ -88,13 +94,15 @@ providerMigration() {
 
   validateConsumers $1 $3
 
-  sh ./backupResources.sh $1 $3 || exit 1
+  sh ./backupResources.sh $1 $3 $oldOCMToken || exit 1
 
-  sh ./freeEBSVolumes.sh $1 $3 || exit 1
+  sh ./freeEBSVolumes.sh $1 $3 $oldOCMToken || exit 1
 
-  sh ./migrateProvider.sh $2 $3 || exit 1
+  sh ./migrateProvider.sh $2 $3 $newOCMToken || exit 1
 
-  sh ./updateEBSVolumes.sh $2 $3 || exit 1
+  sh ./updateEBSVolumes.sh $2 $3 $newOCMToken || exit 1
+
+  loginCluster $1 $3 $oldOCMToken
 
   echo -e "\n${Cyan}Deleting the old/backup cluster${EndColor}"
   clusterName=$(ocm list clusters | grep $1 | awk '{print $2}')
@@ -104,7 +112,6 @@ providerMigration() {
   rosa delete service --id=$serviceId -y
   sleep 20
 
-  loginCluster $1 $3
   #TODO: update to check if configmap is present
   while true
   do
@@ -127,7 +134,11 @@ providerMigration() {
 
   echo -e "\n${Green}Run the following commands in new terminal, sequentially/parellel to migrate the consumers.${EndColor}"
   
-  loginCluster $2 $3
+  loginCluster $2 $3 $newOCMToken
+
+  if [[ "${3}" == "-d" ]]; then
+    ocm login --token="$oldOCMToken" --url=staging
+  fi
 
   consumers=`ls  backup/storageconsumers`
   storageProviderEndpoint=$(kubectl get StorageCluster ocs-storagecluster -n ${dfOfferingNamespace} -o json | jq -r '.status .storageProviderEndpoint')
@@ -138,7 +149,7 @@ providerMigration() {
     consumerClusterID=$(ocm list clusters --columns ID,name,externalID | grep ${consumerName#*-} | awk '{ print $1; exit}')
 
     echo -e "\n${Cyan}For Consumer with ClusterID${EndColor}: "$consumerClusterID
-    echo -e "\n./migrate.sh -consumer "$consumerClusterID" "$storageProviderEndpoint" "${uid}" "$3" "$4"\n\n"
+    echo -e "\n./migrate.sh -consumer "$consumerClusterID" "$storageProviderEndpoint" "${uid}" "$3" "$4" "$oldOCMToken"\n\n"
   done
 
 }
@@ -161,14 +172,14 @@ consumerMigration() {
     exit 1
   fi
 
-  sh ./deatchConsumerAddon.sh $1 $5 $4 || exit 1
-  sh ./migrateConsumer.sh $2 $3 $1 $4 || exit 1
+  sh ./deatchConsumerAddon.sh $1 $5 $4 $6 || exit 1
+  sh ./migrateConsumer.sh $2 $3 $1 $4 $6 || exit 1
 }
 
 if [[ "${1}" == "-provider" ]]; then
   providerMigration $2 $3 $4 $5
 elif [[ "${1}" == "-consumer" ]]; then
-  consumerMigration $2 $3 $4 $5 $6
+  consumerMigration $2 $3 $4 $5 $6 $7
 else
   usage
   exit 1
