@@ -316,7 +316,7 @@ if [ -z "${1}" ] || [ -z "${2}" ] || [ -z "${3}" ]; then
   exit 1
 fi
 
-loginCluster $3 $4
+loginCluster $3 $4 $5
 
 backupDirectoryName=backup_consumer/${3}
 

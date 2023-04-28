@@ -30,7 +30,7 @@ if [ -z "${2}" ]; then
   exit 1
 fi
 
-loginCluster $1 $2
+loginCluster $1 $2 $3
 
 unset workerNodeNames
 unset workerIps

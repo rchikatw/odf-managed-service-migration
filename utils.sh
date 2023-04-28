@@ -14,6 +14,8 @@ link[ocm-backplane]="https://gitlab.cee.redhat.com/service/backplane-cli"
 dfOfferingNamespace="fusion-storage"
 clientOperatorNamespace="fusion-storage"
 storageClientName="ocs-storageclient"
+oldOCMToken=""
+newOCMToken="" 
 
 Red='\033[1;31m'          # Red
 Green='\033[1;32m'        # Green
@@ -25,6 +27,7 @@ Blue='\033[1;34m'          # Blue
 loginCluster() {
   if [[ "${2}" == "-d" ]];
   then
+    ocm login --token="$3" --url=staging
     storeKubeconfigAndLoginCluster $1
   elif [ -z "${2}" ];then
     ocm-backplane login $1

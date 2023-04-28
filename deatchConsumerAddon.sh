@@ -36,7 +36,7 @@ if [[ "${2}" != "-dev" ]] && [[ "${2}" != "-qe" ]] && [[ "${2}" != "" ]]; then
   exit 1
 fi
 
-loginCluster $1 $3
+loginCluster $1 $3 $4
 
 echo -e "${Green}Deatach addon script started${EndColor}"
 

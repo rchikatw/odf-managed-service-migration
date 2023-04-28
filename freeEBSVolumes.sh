@@ -20,7 +20,7 @@ if [[ "${1}" == "-h" ]] || [[ "${1}" == "--help" ]]; then
   exit 0
 fi
 
-loginCluster $1 $2
+loginCluster $1 $2 $3
 
 echo -e "${Green}Detaching the EBS volume from old cluster${EndColor}"
 
