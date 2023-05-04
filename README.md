@@ -35,7 +35,7 @@
 - The permissions required by AWS is listed `migration-policy.json`
 - Customers can use `createAWSMigrationUser` script to create a user called `migration` and give it the permission required.
 - The script also creates access keys which needs to be shared to redhat as it is required to run the script
-- The Redhat SRE will add this credentials in .aws/credentials under the profile migration before running the script
+- The Redhat SRE will add this credentials in `.aws/credentials` under the profile migration before running the script
 
 ```shell
 [migration]
