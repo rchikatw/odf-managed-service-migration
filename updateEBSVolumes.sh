@@ -43,7 +43,7 @@ do
   aws ec2 delete-tags --tags Key=$keyName --resources $volumeID --region $region --profile migration
 
   #Update the tag with correct key
-  keyName="kubernetes.io/cluster/"$(kubectl get machineset $(kubectl get machineset -n openshift-machine-api | awk 'NR!=1 {print}' | awk '{ print $1; exit }') -n openshift-machine-api -o json | jq -r '.metadata .labels ."machine.openshift.io/cluster-api-cluster"')
+  keyName="kubernetes.io/cluster/"$(ocm describe cluster $1 --json | jq -r '.infra_id')
   aws ec2 create-tags --tags Key=$keyName,Value=owned --resources $volumeID --region $region --profile migration
 
   nameValue=$(aws ec2 describe-volumes --volume-id $volumeID --filters Name=tag:kubernetes.io/created-for/pvc/namespace,Values=openshift-storage  --region $region --query "Volumes[*].Tags" --output json --profile migration | jq .[] | jq -r '.[]| select (.Key == "Name")|.Value')
