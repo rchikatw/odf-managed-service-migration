@@ -92,10 +92,10 @@ providerMigration() {
     exit 0
   fi
 
-  profileExist=$(aws configure list --profile migration)
+  profileExist=$(aws configure list $awsProfile)
   if [[ $profileExist != *"access_key"* ]]; then
-    echo -e "${Red}Error: Please add migration profile in .aws/credentials file for updating the EBS volumes on AWS.${EndColor}"
-    exit 1
+    echo -e "${BoldCyan} Migration Profile does not exist using the defaut aws login for updating the EBS volumes on AWS.${EndColor}"
+    awsProfile=""
   fi
 
   validateConsumers $1 $3
