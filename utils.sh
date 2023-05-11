@@ -15,7 +15,8 @@ dfOfferingNamespace="fusion-storage"
 clientOperatorNamespace="fusion-storage"
 storageClientName="ocs-storageclient"
 oldOCMToken=""
-newOCMToken="" 
+newOCMToken=""
+awsProfile="--profile migration" 
 
 Red='\033[1;31m'          # Red
 Green='\033[1;32m'        # Green
