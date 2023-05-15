@@ -122,6 +122,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: fusion-storage
+  labels:
+    misf.ibm.com/managed: "true"
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
@@ -130,7 +132,7 @@ metadata:
   namespace: fusion-storage
 spec:
   sourceType: grpc
-  image: quay.io/rhceph-dev/ocs-registry:4.12.3-12
+  image: quay.io/rhceph-dev/ocs-registry:4.12.3-16
 ---
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
@@ -139,6 +141,9 @@ metadata:
   namespace: fusion-storage
 spec:
   upgradeStrategy: Default
+  selector:
+    matchLabels:
+      misf.ibm.com/managed: "true"
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
